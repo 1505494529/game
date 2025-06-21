@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二分查找小课堂</title>
+    <style>
+        :root {
+            /* 我的世界 (Minecraft) 主题配色 */
+            --mc-dirt-brown: #291b12;
+            --mc-stone-grey: #4A4A4A;
+            --mc-ui-grey: #C6C6C6;
+            --mc-diamond-blue: #55CDFC;
+            --mc-gold-yellow: #FFD700;
+            --mc-xp-green: #80FF20;
+            --mc-text-color: #FFFFFF;
+            --mc-grass-green: #69B22A;
+            --mc-cobblestone: #707070;
+            --pointer-bg: rgba(0, 0, 0, 0.6); /* 指针背景色 */
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Press Start 2P', 'Microsoft YaHei', sans-serif;
+            background: var(--mc-dirt-brown);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--mc-text-color);
+            padding: 20px;
+            image-rendering: pixelated; 
+        }
+
+        .game-container {
+            background: var(--mc-stone-grey);
+            border: 4px solid #1E1E1E;
+            box-shadow: inset 0 0 0 4px #8B8B8B;
+            border-radius: 8px;
+            padding: 20px 30px;
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .title-group { text-align: left; }
+
+        h1 {
+            font-size: 2.2em;
+            color: var(--mc-gold-yellow);
+            font-weight: normal;
+            text-shadow: 2px 2px 0px #3E3000;
+        }
+
+        .subtitle { font-size: 0.8em; opacity: 0.8; margin-top: 10px; }
+
+        .game-controls { display: flex; flex-direction: column; gap: 15px; align-items: flex-end; }
+        .settings-area { display: flex; gap: 10px; align-items: center; font-size: 0.8em; }
+        
+        .settings-area input[type="number"] {
+             font-family: 'Press Start 2P';
+             width: 100px; /* 加宽以适应 10000 */
+             padding: 8px;
+             background: #313131;
+             border: 2px solid #1E1E1E;
+             color: white;
+             text-align: center;
+             font-size: 0.9em;
+        }
+        
+        .toggle-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .toggle-switch input { display: none; }
+        .toggle-switch .slider {
+            width: 40px; height: 20px; background-color: #707070;
+            border: 2px solid #1E1E1E; position: relative;
+        }
+        .toggle-switch .slider::before {
+            content: ""; position: absolute; height: 12px; width: 12px;
+            left: 2px; top: 2px; background-color: #C6C6C6; transition: .2s;
+        }
+        .toggle-switch input:checked + .slider { background-color: #69B22A; }
+        .toggle-switch input:checked + .slider::before { transform: translateX(20px); }
+
+        .new-game-btn {
+            background: var(--mc-ui-grey); color: #2E2E2E; border: 2px solid #1E1E1E;
+            box-shadow: inset -2px -2px 0 #5A5A5A, inset 2px 2px 0 #FFFFFF;
+            padding: 15px 25px; font-size: 0.8em; cursor: pointer; border-radius: 0;
+        }
+
+        .stats { display: flex; justify-content: space-around; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .stat-item {
+            background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 0;
+            min-width: 150px; border: 2px solid #2E2E2E;
+        }
+        .stat-number { font-size: 1.8em; font-weight: normal; display: block; color: var(--mc-xp-green); }
+
+        .grid-wrapper { position: relative; margin-top: 40px; min-height: 100px; }
+        .number-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(50px, 1fr)); gap: 4px; }
+        .number-box {
+            background: var(--mc-grass-green); color: var(--mc-text-color); border: 2px solid #2B5314;
+            box-shadow: inset -2px -2px 0px #4A801D, inset 2px 2px 0px #8BD03A;
+            border-radius: 0; padding: 15px 10px; cursor: pointer;
+            font-size: 0.8em; position: relative; text-shadow: 1px 1px 0px rgba(0,0,0,0.5);
+        }
+        .number-box:not(.eliminated):hover { border-color: var(--mc-gold-yellow); }
+        .number-box.eliminated {
+            background: var(--mc-cobblestone); color: #B4B4B4; border-color: #3C3C3C;
+            box-shadow: inset -2px -2px 0px #505050, inset 2px 2px 0px #A0A0A0; cursor: not-allowed;
+        }
+        .number-box.target {
+            background: var(--mc-diamond-blue); color: white; border-color: #3C8EAE;
+            box-shadow: inset -2px -2px 0px #48A1C0, inset 2px 2px 0px #8CF5FF;
+        }
+
+        /* --- 全新指针样式 --- */
+        .range-pointer {
+            position: absolute;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.5s ease-in-out;
+            z-index: 10;
+            pointer-events: none;
+            transform: translateX(-50%);
+        }
+        .pointer-label {
+            background-color: var(--pointer-bg);
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.7em;
+            border: 2px solid #1E1E1E;
+            text-shadow: 1px 1px 0 #000;
+        }
+        .pointer-arrow {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid var(--pointer-bg);
+        }
+        #left-pointer .pointer-label, #right-pointer .pointer-label { color: var(--mc-text-color); }
+        #mid-pointer .pointer-label { color: var(--mc-diamond-blue); }
+
+        .message { font-size: 1em; margin: 25px 0 10px 0; min-height: 35px; }
+        .grid-info { font-size: 0.8em; color: #ccc; }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header-area">
+            <div class="title-group">
+                <h1>二分查找小课堂</h1>
+                <p class="subtitle">寻找隐藏的方块！</p>
+            </div>
+            <div class="game-controls">
+                <div class="settings-area">
+                    <span>数量: 1 -</span>
+                    <input type="number" id="max-number-input" value="100" min="10" max="10000">
+                </div>
+                 <div class="settings-area">
+                    <span>中值提示:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="show-mid-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <button class="new-game-btn" onclick="startNewGame()">🎮 新游戏</button>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-number" id="target-display">?</span>
+                <div>目标</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="attempts">0</span>
+                <div>挖掘次数</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="optimal">?</span>
+                <div>最优</div>
+            </div>
+        </div>
+
+        <div class="message" id="message">设置数量，点击 "新游戏" 开始！</div>
+
+        <div class="grid-wrapper">
+            <div class="range-pointer" id="left-pointer"><div class="pointer-label">left</div><div class="pointer-arrow"></div></div>
+            <div class="range-pointer" id="right-pointer"><div class="pointer-label">right</div><div class="pointer-arrow"></div></div>
+            <div class="range-pointer" id="mid-pointer"><div class="pointer-label">mid</div><div class="pointer-arrow"></div></div>
+            <div class="number-grid" id="numberGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        const MIN_NUM = 1;
+        let MAX_NUM = 100;
+        const RENDER_THRESHOLD = 10000; // 超过此数量不渲染格子
+
+        let targetNumber = 0;
+        let attempts = 0;
+        let gameActive = false;
+        let possibleRange = { left: MIN_NUM, right: MAX_NUM };
+        
+        const numberGrid = document.getElementById('numberGrid');
+        const messageEl = document.getElementById('message');
+        const pointers = {
+            left: document.getElementById('left-pointer'),
+            right: document.getElementById('right-pointer'),
+            mid: document.getElementById('mid-pointer')
+        };
+        const maxNumberInput = document.getElementById('max-number-input');
+        const showMidToggle = document.getElementById('show-mid-toggle');
+
+        showMidToggle.addEventListener('change', () => {
+             if (gameActive) updatePointers();
+        });
+        
+        function generateNumberGrid() {
+            numberGrid.innerHTML = '';
+            if (MAX_NUM > RENDER_THRESHOLD) {
+                const info = document.createElement('div');
+                info.className = 'grid-info';
+                info.textContent = `方块数量 (${MAX_NUM}) 过多，已隐藏网格以保证流畅。请直接在下方输入猜测！`;
+                numberGrid.appendChild(info);
+
+                // Add an input field for large numbers
+                const guessInput = document.createElement('input');
+                guessInput.type = 'number';
+                guessInput.placeholder = '在此输入你的猜测';
+                guessInput.style.cssText = `font-family: 'Press Start 2P'; width: 300px; padding: 15px; margin-top: 20px; background: #313131; border: 2px solid #1E1E1E; color: white; text-align: center; font-size: 1em;`;
+                guessInput.onkeypress = (e) => {
+                    if(e.key === 'Enter' && e.target.value) makeGuess(parseInt(e.target.value));
+                }
+                numberGrid.appendChild(guessInput);
+                
+                return;
+            }
+
+            for (let i = MIN_NUM; i <= MAX_NUM; i++) {
+                const box = document.createElement('div');
+                box.className = 'number-box';
+                box.textContent = i;
+                box.dataset.number = i;
+                box.onclick = () => makeGuess(i);
+                numberGrid.appendChild(box);
+            }
+        }
+
+        function startNewGame() {
+            MAX_NUM = parseInt(maxNumberInput.value) || 100;
+            if (MAX_NUM < 10) MAX_NUM = 10;
+            if (MAX_NUM > 10000) MAX_NUM = 10000;
+            maxNumberInput.value = MAX_NUM;
+            
+            generateNumberGrid();
+
+            targetNumber = Math.floor(Math.random() * MAX_NUM) + MIN_NUM;
+            attempts = 0;
+            gameActive = true;
+            possibleRange = { left: MIN_NUM, right: MAX_NUM };
+            
+            updateDisplay();
+            updateOptimalSteps();
+            
+            document.getElementById('target-display').textContent = '?';
+            messageEl.textContent = `在 1 到 ${MAX_NUM} 之间找到那个神秘方块！`;
+            
+            pointers.mid.style.display = 'none';
+            updatePointers();
+        }
+
+        function makeGuess(guess) {
+            if (!gameActive || isNaN(guess)) return;
+            
+            const clickedBox = document.querySelector(`.number-box[data-number="${guess}"]`);
+            if (clickedBox && clickedBox.classList.contains('eliminated')) return;
+
+            attempts++;
+            updateDisplay();
+            
+            if (guess === targetNumber) {
+                gameWon(guess);
+            } else if (guess < targetNumber) {
+                messageEl.textContent = `${guess} 太小了！目标在它的右边。`;
+                possibleRange.left = guess + 1;
+            } else {
+                messageEl.textContent = `${guess} 太大了！目标在它的左边。`;
+                possibleRange.right = guess - 1;
+            }
+            
+            if (gameActive) {
+                updateGridVisuals();
+                updatePointers();
+            }
+        }
+
+        function gameWon(guess) {
+            gameActive = false;
+            document.getElementById('target-display').textContent = targetNumber;
+            messageEl.textContent = `🎉 找到了！你用 ${attempts} 次挖掘到了 ${targetNumber} 号钻石！`;
+            updateGridVisuals();
+            updatePointers(true);
+        }
+
+        function updateGridVisuals() {
+            if (MAX_NUM > RENDER_THRESHOLD) return;
+            document.querySelectorAll('.number-box').forEach(box => {
+                const num = parseInt(box.dataset.number);
+                if (num < possibleRange.left || num > possibleRange.right) box.classList.add('eliminated');
+                if (!gameActive && num === targetNumber) box.classList.add('target');
+            });
+        }
+        
+        function setPointerPosition(pointerEl, targetNum) {
+            if (MAX_NUM > RENDER_THRESHOLD) {
+                pointerEl.style.display = 'none';
+                return;
+            };
+
+            const targetBox = document.querySelector(`.number-box[data-number="${targetNum}"]`);
+            if (targetBox) {
+                const xPos = targetBox.offsetLeft + targetBox.offsetWidth / 2;
+                const yPos = targetBox.offsetTop;
+                pointerEl.style.left = `${xPos}px`;
+                pointerEl.style.top = `${yPos - 40}px`; // 为新指针增加偏移
+                pointerEl.style.display = 'flex';
+            } else {
+                pointerEl.style.display = 'none';
+            }
+        }
+
+        function updatePointers(gameIsWon = false) {
+            if (!gameActive && !gameIsWon) return;
+
+            setPointerPosition(pointers.left, possibleRange.left);
+            setPointerPosition(pointers.right, possibleRange.right);
+            
+            const midValue = Math.floor((possibleRange.left + possibleRange.right) / 2);
+
+            // 让 mid 指针在游戏胜利后依然可以显示
+            if (showMidToggle.checked && (gameActive || gameIsWon)) {
+                setPointerPosition(pointers.mid, midValue);
+            } else {
+                pointers.mid.style.display = 'none';
+            }
+        }
+
+        function updateOptimalSteps() {
+            const optimal = Math.ceil(Math.log2(MAX_NUM - MIN_NUM + 1));
+            document.getElementById('optimal').textContent = optimal;
+        }
+
+        function updateDisplay() {
+            document.getElementById('attempts').textContent = attempts;
+        }
+
+        startNewGame();
+    </script>
+</body>
+</html>
