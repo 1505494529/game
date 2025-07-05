@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>游戏主页 (GitHub Pages)</title>
+    <title>游戏主页</title>
     <style>
         /* 样式与之前版本相同 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
@@ -28,7 +28,6 @@
     <script>
         window.onload = async function() {
             const apiUrl = 'https://api.github.com/repos/1505494529/game/contents/game';
-            // 定义您的 GitHub Pages 网站的基础 URL
             const githubPagesBaseUrl = 'https://1505494529.github.io/game/';
             const container = document.getElementById('game-container');
 
@@ -46,18 +45,20 @@
                         return;
                     }
                     
-                    // *** 核心改动 ***
                     // 拼接基础 URL 和文件路径来创建可玩的链接
-                    // 例如: "https://1505494529.github.io/game/" + "game/二分查找.html"
                     const playableUrl = githubPagesBaseUrl + game.path;
                     
+                    // 创建不带 .html 扩展名的显示名称
+                    const displayName = game.name.replace('.html', '');
+
                     const card = document.createElement('div');
                     card.className = 'game-card';
                     
+                    // 在模板中统一使用 playableUrl 和 displayName
                     card.innerHTML = `
-                        <a href="${playableUrl}" target="_blank" title="点击玩《${game.name}》">
+                        <a href="${playableUrl}" target="_blank" title="点击玩《${displayName}》">
                             <iframe class="game-thumbnail" src="${playableUrl}" scrolling="no" loading="lazy"></iframe>
-                            <h3>${game.name}</h3>
+                            <h3>${displayName}</h3>
                         </a>
                     `;
                     
