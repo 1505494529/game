@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第四站：完全二叉树的构建过程</title>
+    <style>
+        /* --- 全局游戏风格 (与原版保持一致) --- */
+        :root {
+            --bg-color: #f0f8ff; /* 淡蓝色背景 */
+            --main-color: #4a90e2; /* 蓝色 */
+            --accent-color: #f5a623; /* 橙色 */
+            --success-color: #7ed321; /* 绿色 */
+            --error-color: #d0021b; /* 红色 */
+            --node-bg: #fff;
+            --border-color: #000;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: var(--main-color);
+            font-size: 2.5em;
+            text-shadow: 2px 2px #ddd;
+        }
+
+        h2 {
+            margin-top: 40px;
+            border-bottom: 4px solid var(--border-color);
+            display: inline-block;
+            padding-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 4px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.15);
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .controls button {
+            padding: 12px 18px;
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--main-color);
+            color: white;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+        }
+        
+        .controls button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+        }
+
+        .controls button:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+        }
+        
+        #tree-info {
+            font-size: 1.2em; 
+            font-weight: bold; 
+            color: var(--error-color);
+        }
+
+        .vis-area {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+            border: 3px dashed var(--accent-color);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        /* --- 树的样式 (与原版保持一致) --- */
+        .tree-node {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-color);
+            border-radius: 50%;
+            background-color: var(--success-color);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: all 0.5s ease-in-out;
+            text-align: center;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+            /* 确保节点在连线上方 */
+            z-index: 10; 
+        }
+        
+        .tree-line {
+            stroke: var(--border-color);
+            stroke-width: 4;
+        }
+        
+        /* 动画效果 */
+        .new-element {
+            transform: scale(0.1);
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>数据结构冒险岛</h1>
+
+    <div class="container">
+        <h2>第四站：完全二叉树的构建过程</h2>
+        <div class="controls">
+            <button id="add-node-btn">增加一个节点</button>
+            <button id="reset-btn">重置 (1个节点)</button>
+            <span id="tree-info"></span>
+        </div>
+        <div id="tree-area" class="vis-area">
+            <!-- SVG和节点将由脚本动态创建 -->
+        </div>
+    </div>
+    
+    <script>
+    const treeArea = document.getElementById('tree-area');
+    const treeInfo = document.getElementById('tree-info');
+    const addNodeBtn = document.getElementById('add-node-btn');
+    const MAX_NODES = 31; // 设置一个最大节点数以防画面太拥挤
+    let nodeCount = 1;
+
+    function drawCompleteTree() {
+        // 清空容器
+        treeArea.innerHTML = '';
+
+        // 创建SVG画布，使其位于节点下方
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('id', 'tree-svg');
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.zIndex = '1'; // 低于节点的z-index
+        treeArea.appendChild(svg);
+        
+        // 用于存储每个节点的位置，方便后续连线
+        const nodePositions = {};
+        
+        // 禁用/启用增加按钮
+        addNodeBtn.disabled = nodeCount >= MAX_NODES;
+
+        // 迭代绘制所有节点
+        for (let i = 1; i <= nodeCount; i++) {
+            // 1. 计算节点所在的层级 (根节点是第1层)
+            const level = Math.floor(Math.log2(i)) + 1;
+            
+            // 2. 计算节点在当前层的索引 (从0开始)
+            const indexInLevel = i - Math.pow(2, level - 1);
+            
+            // 3. 计算当前层级的节点总容量
+            const nodesInLevelCapacity = Math.pow(2, level - 1);
+
+            // 4. 计算节点的坐标
+            const x = (treeArea.clientWidth / (nodesInLevelCapacity + 1)) * (indexInLevel + 1);
+            const y = level * 80 - 30;
+            
+            // 存储位置
+            nodePositions[i] = { x, y };
+
+            // 5. 如果不是根节点，绘制连接到父节点的线
+            if (i > 1) {
+                const parentIndex = Math.floor(i / 2);
+                const parentPos = nodePositions[parentIndex];
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', parentPos.x);
+                line.setAttribute('y1', parentPos.y);
+                line.setAttribute('x2', x);
+                line.setAttribute('y2', y);
+                line.setAttribute('class', 'tree-line');
+                svg.appendChild(line);
+            }
+        }
+        
+        // 迭代创建所有节点div (在连线之后创建，确保节点在上面)
+        for (let i = 1; i <= nodeCount; i++) {
+            const pos = nodePositions[i];
+
+            const node = document.createElement('div');
+            node.className = 'tree-node';
+            
+            // 为最新添加的节点增加动画效果
+            if (i === nodeCount) {
+                node.classList.add('new-element');
+            }
+            
+            node.innerText = i; 
+            node.style.left = `${pos.x - 25}px`;
+            node.style.top = `${pos.y - 25}px`;
+            treeArea.appendChild(node);
+            
+            // 触发动画
+            setTimeout(() => node.classList.remove('new-element'), 100);
+        }
+
+        // 更新信息
+        const treeHeight = nodeCount > 0 ? Math.floor(Math.log2(nodeCount)) + 1 : 0;
+        treeInfo.innerText = `当前节点总数: ${nodeCount}, 树的高度: ${treeHeight}`;
+    }
+
+    document.getElementById('add-node-btn').onclick = () => {
+        if (nodeCount < MAX_NODES) {
+            nodeCount++;
+            drawCompleteTree();
+        }
+    };
+
+    document.getElementById('reset-btn').onclick = () => {
+        nodeCount = 1;
+        drawCompleteTree();
+    };
+
+    // --- 初始化和窗口大小调整 ---
+    window.onload = () => {
+        nodeCount = 1;
+        drawCompleteTree();
+    };
+
+    window.onresize = drawCompleteTree;
+    </script>
+</body>
+</html>

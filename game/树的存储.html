@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>树的数组存储方法教学演示</title>
+    
+    <!-- 引入 Prism.js 代码高亮库的 CSS (Okaidia 暗色主题) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
+
+    <style>
+        /* --- 全局游戏风格 --- */
+        :root {
+            --bg-color: #f0f8ff;
+            --main-color: #4a90e2;
+            --accent-color: #f5a623;
+            --success-color: #7ed321;
+            --error-color: #d0021b;
+            --border-color: #000;
+            --highlight-bg: #fffbe0; 
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1, h2 {
+            color: var(--main-color);
+            text-shadow: 2px 2px #ddd;
+        }
+        
+        h2 {
+            margin-top: 40px;
+            border-bottom: 4px solid var(--border-color);
+            display: inline-block;
+            padding-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 4px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.15);
+        }
+
+        .method-section { margin-top: 30px; }
+        
+        .controls {
+            margin: 20px 0 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            min-height: 50px;
+            flex-direction: column;
+        }
+
+        .control-buttons { display: flex; gap: 15px; }
+
+        .controls button {
+            padding: 12px 18px;
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--main-color);
+            color: white;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+        }
+
+        .controls button:active, .controls button:disabled {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+
+        /* --- 可视化区域 --- */
+        .vis-container { display: flex; flex-wrap: wrap; gap: 20px; min-height: 450px; margin-top: 10px; padding: 10px; border: 3px dashed var(--accent-color); border-radius: 10px; }
+        .array-display { flex: 1; min-width: 400px; display: flex; justify-content: center; align-items: center; gap: 20px; background-color: #f9f9f9; border: 2px solid #ccc; border-radius: 8px; padding: 15px; font-family: 'Courier New', Courier, monospace; font-size: 1.2em; }
+        .tree-display { position: relative; flex: 1; min-width: 400px; min-height: 400px; }
+        
+        /* --- 数组网格样式 --- */
+        .array-grid { border-collapse: collapse; text-align: center; }
+        .array-grid td { border: 2px solid var(--border-color); width: 40px; height: 40px; position: relative; transition: background-color 0.3s ease; }
+        .array-grid th { width: 40px; height: 40px; }
+        .array-grid .index { border: none; background-color: transparent; font-weight: normal; color: #555; text-align: center; }
+        .array-grid .header-label { font-weight: bold; color: #333; }
+        .array-grid td.highlight, .array-grid tr.highlight td { background-color: var(--highlight-bg); font-weight: bold; }
+
+        /* --- 树的样式 --- */
+        .tree-node { position: absolute; width: 50px; height: 50px; border: 3px solid var(--border-color); border-radius: 50%; background-color: var(--success-color); color: white; display: flex; justify-content: center; align-items: center; font-size: 1.2em; font-weight: bold; transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; box-shadow: 4px 4px 0px rgba(0,0,0,0.2); z-index: 10; transform: translate(-50%, -50%) scale(0.1); opacity: 0; }
+        .tree-node.visible { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        .tree-line { stroke: var(--border-color); stroke-width: 4; transition: all 0.5s ease; stroke-dasharray: 1000; stroke-dashoffset: 1000; }
+        .tree-line.draw { stroke-dashoffset: 0; }
+
+        .instruction { color: #555; margin: 10px 0; }
+        .status-message { color: var(--main-color); font-weight: bold; min-height: 1.2em; margin-top: 10px; }
+        
+        /* --- 代码展示区新样式 --- */
+        .code-container {
+            margin: 25px 0 0 0;
+            border-radius: 10px;
+            overflow: hidden; 
+            text-align: left;
+            border: 3px solid #ccc;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+        }
+        .code-container pre[class*="language-"] {
+            margin: 0; border-radius: 0; border: none; box-shadow: none; padding: 15px; font-size: 1em;
+        }
+        .code-container code[class*="language-"] {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        
+        /* --- 输入样例样式 --- */
+        .input-sample-container {
+            margin: 15px 0 0 0;
+            padding: 10px 15px;
+            background-color: #fafafa;
+            border: 2px dashed #a0a0a0;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .input-sample-container h4 {
+            margin: 0 0 8px 0;
+            font-size: 1.1em;
+            color: #333;
+        }
+        .input-sample-container pre {
+            margin: 0;
+            padding: 8px;
+            background-color: #eee;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            color: #d0021b;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>树的数组存储方法</h1>
+
+    <!-- ================= 方法一：父结点表示法 ================= -->
+    <div class="container method-section">
+        <h2>方法一：父结点表示法 (Parent Array)</h2>
+        <p class="instruction">用一个数组 fa[] 存储每个节点的父结点。根节点的父结点通常设为0或-1。</p>
+        
+        <div class="code-container">
+            <pre><code class="language-cpp">// C++ 核心输入代码
+int N = 8;
+int fa[N + 1];
+
+// 输入 N-1 条边, 格式为: parent child
+for (int i = 0; i < N - 1; i++) {
+    int u, v; // u 是 v 的父结点
+    cin >> u >> v;
+    fa[v] = u;
+}
+            </code></pre>
+        </div>
+
+        <div class="input-sample-container">
+            <h4>输入样例</h4>
+            <pre>1 2
+1 3
+1 4
+2 5
+2 6
+3 7
+5 8</pre>
+        </div>
+
+        <div id="controls-fa" class="controls">
+            <p id="status-fa" class="status-message"></p>
+            <div class="control-buttons">
+                <button id="step-fa">开始演示</button>
+                <button id="reset-fa">重置</button>
+            </div>
+        </div>
+        <div class="vis-container">
+            <div id="fa-array-display" class="array-display"></div>
+            <div id="fa-tree-display" class="tree-display">
+                <svg width="100%" height="100%" style="position:absolute; top:0; left:0; z-index: 1;"></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 方法二：边列表 ================= -->
+    <div class="container method-section">
+        <h2>方法二：边列表 (Edge List)</h2>
+        <p class="instruction">用一个二维数组存储每一条边，每条边记录它所连接的两个节点。</p>
+
+        <div class="code-container">
+            <pre><code class="language-cpp">// C++ 核心输入代码
+// 对于有 N 个节点的树, 边数 M = N - 1
+int M = 7;
+int edge_list[M][2];
+
+// 输入 M 条边, 每条边包含两个节点 u, v
+for (int i = 0; i < M; i++) {
+    int u, v;
+    cin >> u >> v;
+    edge_list[i][0] = u;
+    edge_list[i][1] = v;
+}
+            </code></pre>
+        </div>
+        
+        <div class="input-sample-container">
+            <h4>输入样例</h4>
+            <pre>1 2
+1 3
+1 4
+2 5
+2 6
+3 7
+5 8</pre>
+        </div>
+
+        <div id="controls-edge" class="controls">
+             <p id="status-edge" class="status-message"></p>
+            <div class="control-buttons">
+                <button id="step-edge">开始演示</button>
+                <button id="reset-edge">重置</button>
+            </div>
+        </div>
+        <div class="vis-container">
+            <div id="edge-array-display" class="array-display"></div>
+            <div id="edge-tree-display" class="tree-display">
+                <svg width="100%" height="100%" style="position:absolute; top:0; left:0; z-index: 1;"></svg>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ================= 方法三：孩子表示法 (邻接表) ================= -->
+    <div class="container method-section">
+        <h2>方法三：孩子表示法 (Adjacency List)</h2>
+        <p class="instruction">使用二维数组 `son` 存储孩子，并用 `sonNum` 数组记录每个节点的孩子数量。</p>
+
+        <div class="code-container">
+            <pre><code class="language-cpp">// C++ 核心输入代码
+// N: 节点总数, MAX_CHILDREN: 每个节点最大孩子数
+int N = 8;
+
+int son[N + 1][N]; // 存储孩子
+int sonNum[N + 1] = {0};      // 记录孩子数量
+
+// 输入 N-1 条边, 格式为: parent child
+for (int i = 0; i < N - 1; i++) {
+    int p, c; // p 是 c 的父结点
+    cin >> p >> c;
+    // 将 c 添加到 p 的孩子列表末尾
+    son[p][sonNum[p]] = c;
+    // p 的孩子数量加 1
+    sonNum[p]++;
+}
+            </code></pre>
+        </div>
+        
+        <div class="input-sample-container">
+            <h4>输入样例</h4>
+            <pre>1 2
+1 3
+1 4
+2 5
+2 6
+3 7
+5 8</pre>
+        </div>
+
+        <div id="controls-son" class="controls">
+             <p id="status-son" class="status-message"></p>
+            <div class="control-buttons">
+                <button id="step-son">开始演示</button>
+                <button id="reset-son">重置</button>
+            </div>
+        </div>
+        <div class="vis-container">
+            <div id="son-array-display" class="array-display"></div>
+            <div id="son-tree-display" class="tree-display">
+                <svg width="100%" height="100%" style="position:absolute; top:0; left:0; z-index: 1;"></svg>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 引入 Prism.js 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+
+<script>
+// --- 全局配置 ---
+const NODE_COUNT = 8;
+const ROOT = 1;
+
+// 固定的树结构用于演示
+const treeData = {
+    fa: [0, 0, 1, 1, 1, 2, 2, 3, 5], 
+    edges: [[1, 2], [1, 3], [1, 4], [2, 5], [2, 6], [3, 7], [5, 8]],
+    son: { 1: [2, 3, 4], 2: [5, 6], 3: [7], 4: [], 5: [8], 6: [], 7: [], 8: [] },
+    nodePositions: {
+        1: { x: '50%', y: '50px' }, 2: { x: '20%', y: '150px' },
+        3: { x: '50%', y: '150px' }, 4: { x: '80%', y: '150px' },
+        5: { x: '10%', y: '250px' }, 6: { x: '30%', y: '250px' },
+        7: { x: '50%', y: '250px' }, 8: { x: '10%', y: '350px' }
+    }
+};
+
+// --- 通用工具函数 ---
+function createNode(id, container) {
+    const pos = treeData.nodePositions[id];
+    const node = document.createElement('div');
+    node.className = 'tree-node';
+    node.id = `${container.id}-node-${id}`;
+    node.innerText = id;
+    node.style.left = pos.x;
+    node.style.top = pos.y;
+    container.appendChild(node);
+    return node;
+}
+
+function createLine(id1, id2, container, svg) {
+    const containerRect = container.getBoundingClientRect();
+    if(containerRect.width === 0) return; 
+    
+    const pos1 = treeData.nodePositions[id1];
+    const pos2 = treeData.nodePositions[id2];
+    
+    const x1 = containerRect.width * (parseFloat(pos1.x) / 100);
+    const y1 = parseFloat(pos1.y);
+    const x2 = containerRect.width * (parseFloat(pos2.x) / 100);
+    const y2 = parseFloat(pos2.y);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x1);
+    line.setAttribute('y2', y1);
+    line.setAttribute('class', 'tree-line');
+    svg.appendChild(line);
+    
+    setTimeout(() => { 
+        line.setAttribute('x2', x2); 
+        line.setAttribute('y2', y2);
+        line.classList.add('draw');
+    }, 50);
+}
+
+// --- 控制器基类 ---
+class StepperController {
+    constructor(config) {
+        this.stepBtn = document.getElementById(config.stepBtnId);
+        this.resetBtn = document.getElementById(config.resetBtnId);
+        this.statusEl = document.getElementById(config.statusId);
+        this.arrayDisplay = document.getElementById(config.arrayDisplayId);
+        this.treeContainer = document.getElementById(config.treeContainerId);
+
+        this.isAnimating = false;
+        this.currentStep = 0;
+        this.totalSteps = 0;
+        this.nodes = {};
+        this.lastHighlighted = null;
+
+        this.stepBtn.onclick = () => this.step();
+        this.resetBtn.onclick = () => this.reset();
+
+        this.renderArray();
+    }
+
+    reset() {
+        this.isAnimating = false;
+        this.currentStep = 0;
+        this.stepBtn.textContent = '开始演示';
+        this.stepBtn.disabled = false;
+        this.statusEl.textContent = '';
+        this.treeContainer.innerHTML = '<svg width="100%" height="100%" style="position:absolute; top:0; left:0; z-index: 1;"></svg>';
+        if (this.lastHighlighted) {
+            this.lastHighlighted.classList.remove('highlight');
+            this.lastHighlighted = null;
+        }
+        this.arrayDisplay.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+        this.renderArray();
+    }
+
+    step() {
+        if (!this.isAnimating) {
+            this.isAnimating = true;
+            this.stepBtn.textContent = '下一步';
+            this.statusEl.textContent = '请点击“下一步”继续。';
+            this.startAnimation();
+        } else {
+            this.nextStep();
+        }
+
+        if (this.currentStep > this.totalSteps) {
+            this.stepBtn.disabled = true;
+            this.statusEl.textContent = '演示完成！';
+        }
+    }
+    
+    renderArray() { throw new Error("renderArray must be implemented by subclass"); }
+    startAnimation() { throw new Error("startAnimation must be implemented by subclass"); }
+    nextStep() { throw new Error("nextStep must be implemented by subclass"); }
+}
+
+
+// --- 方法一：父结点表示法 (fa[]) ---
+class FaController extends StepperController {
+    constructor() {
+        super({
+            stepBtnId: 'step-fa', resetBtnId: 'reset-fa', statusId: 'status-fa',
+            arrayDisplayId: 'fa-array-display', treeContainerId: 'fa-tree-display'
+        });
+        this.totalSteps = NODE_COUNT;
+    }
+
+    renderArray() {
+        const data = treeData.fa.slice(1);
+        let html = '<table class="array-grid"><tbody>';
+        html += '<tr><th class="header-label">fa[]</th>' + data.map((p, i) => `<td>${p}</td>`).join('') + '</tr>';
+        html += '<tr><th class="index">索引</th>' + data.map((p, i) => `<th class="index">${i+1}</th>`).join('') + '</tr>';
+        html += '</tbody></table>';
+        this.arrayDisplay.innerHTML = html;
+    }
+
+    startAnimation() {
+        for (let i = 1; i <= NODE_COUNT; i++) { this.nodes[i] = createNode(i, this.treeContainer); }
+        this.currentStep = 1;
+        this.nextStep();
+    }
+
+    nextStep() {
+        if (this.lastHighlighted) this.lastHighlighted.classList.remove('highlight');
+        
+        const i = this.currentStep;
+        if (i > this.totalSteps) return;
+
+        const cell = this.arrayDisplay.querySelector(`tr:first-child td:nth-child(${i + 1})`);
+        cell.classList.add('highlight');
+        this.lastHighlighted = cell;
+
+        this.nodes[i].classList.add('visible');
+        
+        const parent = treeData.fa[i];
+        if (parent > 0) {
+            createLine(parent, i, this.treeContainer, this.treeContainer.querySelector('svg'));
+        }
+        this.currentStep++;
+    }
+}
+new FaController();
+
+
+// --- 方法二：边列表 (edge[][]) ---
+class EdgeController extends StepperController {
+    constructor() {
+        super({
+            stepBtnId: 'step-edge', resetBtnId: 'reset-edge', statusId: 'status-edge',
+            arrayDisplayId: 'edge-array-display', treeContainerId: 'edge-tree-display'
+        });
+        this.totalSteps = treeData.edges.length - 1;
+    }
+    
+    renderArray() {
+        let html = '<table class="array-grid"><tbody>';
+        html += '<tr><th class="index"></th><th class="header-label">0</th><th class="header-label">1</th></tr>';
+        treeData.edges.forEach((edge, i) => {
+            html += `<tr id="edge-row-${i}"><th class="index">${i}</th><td>${edge[0]}</td><td>${edge[1]}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        this.arrayDisplay.innerHTML = html;
+    }
+    
+    startAnimation() {
+        for (let i = 1; i <= NODE_COUNT; i++) { this.nodes[i] = createNode(i, this.treeContainer); }
+        this.currentStep = 0;
+        this.nextStep();
+    }
+    
+    nextStep() {
+        if (this.lastHighlighted) this.lastHighlighted.classList.remove('highlight');
+        
+        const i = this.currentStep;
+        if (i > this.totalSteps) return;
+
+        const row = document.getElementById(`edge-row-${i}`);
+        row.classList.add('highlight');
+        this.lastHighlighted = row;
+
+        const [u, v] = treeData.edges[i];
+        this.nodes[u].classList.add('visible');
+        this.nodes[v].classList.add('visible');
+        createLine(u, v, this.treeContainer, this.treeContainer.querySelector('svg'));
+        
+        this.currentStep++;
+    }
+}
+new EdgeController();
+
+// --- 方法三：孩子表示法 (son / sonNum) ---
+class SonController extends StepperController {
+    constructor() {
+        super({
+            stepBtnId: 'step-son', resetBtnId: 'reset-son', statusId: 'status-son',
+            arrayDisplayId: 'son-array-display', treeContainerId: 'son-tree-display'
+        });
+        this.queue = [];
+        this.visited = new Set();
+    }
+    
+    renderArray() {
+        const maxChildren = Math.max(...Object.values(treeData.son).map(arr => arr.length));
+        
+        let sonHtml = '<table class="array-grid"><tbody>';
+        let headerHtml = '<tr><th class="header-label">son</th>';
+        for(let i=0; i < maxChildren; i++) headerHtml += `<th class="index">${i}</th>`;
+        sonHtml += headerHtml + '</tr>';
+
+        for (let i = 1; i <= NODE_COUNT; i++) {
+            const children = treeData.son[i] || [];
+            sonHtml += `<tr id="son-row-${i}"><th class="index">${i}</th>`;
+            for (let j = 0; j < maxChildren; j++) {
+                sonHtml += `<td>${children[j] || ''}</td>`;
+            }
+            sonHtml += '</tr>';
+        }
+        sonHtml += '</tbody></table>';
+
+        let sonNumHtml = '<table class="array-grid"><tbody>';
+        sonNumHtml += '<tr><th class="header-label">sonNum</th></tr>';
+        for (let i = 1; i <= NODE_COUNT; i++) {
+             const children = treeData.son[i] || [];
+             sonNumHtml += `<tr id="son-num-row-${i}"><td>${children.length}</td></tr>`;
+        }
+        sonNumHtml += '</tbody></table>';
+
+        this.arrayDisplay.innerHTML = sonHtml + sonNumHtml;
+    }
+    
+    reset() {
+        super.reset();
+        this.queue = [];
+        this.visited.clear();
+    }
+
+    startAnimation() {
+        for (let i = 1; i <= NODE_COUNT; i++) { this.nodes[i] = createNode(i, this.treeContainer); }
+        this.queue.push(ROOT);
+        this.visited.add(ROOT);
+        this.nodes[ROOT].classList.add('visible');
+        
+        this.totalSteps = NODE_COUNT -1;
+        this.currentStep = 0;
+        this.nextStep();
+    }
+
+    nextStep() {
+        if (this.lastHighlighted) {
+            this.lastHighlighted.classList.remove('highlight');
+            document.getElementById(this.lastHighlighted.id.replace('son-row', 'son-num-row')).classList.remove('highlight');
+        }
+        if (this.queue.length === 0) return;
+
+        const u = this.queue.shift();
+        const rowEl = document.getElementById(`son-row-${u}`);
+        const rowNumEl = document.getElementById(`son-num-row-${u}`);
+        
+        rowEl.classList.add('highlight');
+        rowNumEl.classList.add('highlight');
+        this.lastHighlighted = rowEl;
+
+        const children = treeData.son[u] || [];
+        for (const v of children) {
+            if (!this.visited.has(v)) {
+                this.visited.add(v);
+                this.nodes[v].classList.add('visible');
+                createLine(u, v, this.treeContainer, this.treeContainer.querySelector('svg'));
+                this.queue.push(v);
+            }
+        }
+        this.currentStep++;
+    }
+}
+new SonController();
+
+</script>
+
+</body>
+</html>
