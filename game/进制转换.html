@@ -1,1 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>进制转换小游戏 - 水桶大挑战 (含4进制)</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Arial', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: flex-start; min-height: 100vh; margin: 0;
+            padding-top: 20px; padding-bottom: 20px; 
+            background: linear-gradient(135deg, #87CEEB 0%, #ADD8E6 100%);
+            color: #333; overflow-x: hidden;
+        }
 
+        .mode-selection-container, .game-main-content { 
+            background-color: rgba(255, 255, 255, 0.9); padding: 20px;
+            border-radius: 20px; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            text-align: center; width: 90%;
+        }
+        .mode-selection-container { max-width: 500px; margin-bottom: 30px; }
+        .game-main-content {
+            max-width: 1300px; 
+            position: relative;
+            display: none;  
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .mode-selection-container h2 { color: #FF6347; margin-bottom: 20px; }
+        .mode-button {
+            background-color: #FF8C00; color: white; border: none;
+            padding: 15px 25px; font-size: 1.2em; border-radius: 10px;
+            cursor: pointer; margin: 10px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .mode-button:hover { background-color: #FFA500; transform: scale(1.05); }
+
+        h1 { color: #FF6347; text-shadow: 2px 2px #FFD700; margin-bottom: 20px; }
+        .controls {
+            order: 1; 
+            width: 100%; 
+            margin-bottom: 20px; display: flex; justify-content: center;
+            align-items: center; gap: 10px; 
+            flex-wrap: wrap;
+        }
+        .controls label, .controls input, .controls select, .controls button {
+            padding: 10px; border-radius: 8px; border: 2px solid #4682B4; font-size: 1em;
+            margin: 5px; 
+        }
+        .controls input[type="number"] { width: 100px; }
+        .controls button { 
+            background-color: #32CD32; color: white; cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+        .controls button:hover { background-color: #228B22; }
+        .controls button:active { transform: scale(0.95); }
+        
+        #back-to-mode-select-top { 
+            background-color: #FF6347; color:white;
+        }
+        
+        .n-to-10-controls { margin-top: 20px; } 
+        #calculate-n-to-10 {
+            background-color: #1E90FF; font-size: 1.1em; padding: 12px 20px;
+        }
+        #calculate-n-to-10:hover { background-color: #0073e6; }
+        #calculate-n-to-10:disabled { background-color: #cccccc; cursor:not-allowed; }
+
+
+        .water-tank-container {
+            width: 150px; height: 250px; background-color: #E0E0E0;
+            border: 5px solid #A9A9A9; border-radius: 10px 10px 0 0;
+            margin: 20px auto; position: relative; overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        .water-level {
+            background: linear-gradient(to bottom, #1E90FF, #00BFFF); width: 100%;
+            position: absolute; bottom: 0; transition: height 0.5s ease-out;
+        }
+        .water-level::before, .water-level::after { content: ""; position: absolute; width: 200%; height: 20px; background-color: rgba(255,255,255,0.3); border-radius: 50%; animation: wave 3s infinite linear; }
+        .water-level::before { left: -50%; top: -10px; opacity: 0.8; }
+        .water-level::after { left: -55%; top: -13px; opacity: 0.5; animation-duration: 3.5s; }
+        @keyframes wave {  0% { transform: translateX(0); } 50% { transform: translateX(-25px); } 100% { transform: translateX(0); }  }
+
+        #total-water-display {
+            font-size: 1.2em; font-weight: bold; color: #0077CC;
+            margin-top: 5px; 
+            margin-bottom: 20px;
+        }
+
+        .buckets-area {
+            width: 100%; 
+            display: flex; justify-content: center; align-items: flex-start;
+            flex-wrap: wrap; gap: 12px; 
+            margin-top: 10px; margin-bottom:20px; padding: 10px; border: 1px dashed #ccc;
+            border-radius: 10px; min-height: 280px;
+        }
+        .bucket-group {
+            display: flex; gap: 8px; 
+            align-items: flex-start;
+            padding: 5px; border-radius: 5px;
+        }
+        .decimal-separator { 
+            font-size: 2.5em; align-self: flex-end; 
+            padding-bottom: 40px; line-height: 1;
+            color: #555; font-weight: bold; margin: 0 2px; 
+        }
+
+        .bucket-container {
+            display: flex; flex-direction: column; align-items: center;
+            position: relative; min-width: 65px; 
+            padding: 5px;
+            border-radius: 8px;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .bucket-container.highlighted {
+            background-color: rgba(255, 215, 0, 0.3); 
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+        }
+        .bucket-container.processed {
+            opacity: 0.6;
+        }
+
+
+        .carry-button-wrapper { height: 35px; width: 100%; position: relative; margin-bottom: 0; }
+        .carry-button { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #FFA500; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 1.2em; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: background-color 0.3s, transform 0.2s; animation: bounce 1s infinite alternate; z-index: 20; }
+        .carry-button:hover { background-color: #FF8C00; transform: translate(-50%, -50%) scale(1.1); }
+        @keyframes bounce { from { transform: translate(-50%, -50%) translateY(0); } to { transform: translate(-50%, -50%) translateY(-3px); } }
+        .stacked-icons-container { width: 30px; height: 70px; position: relative; margin: 0 auto 5px auto; pointer-events: none; }
+        .stacked-icon { font-size: 16px; line-height: 1; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); position: absolute; left: 50%; transform: translateX(-50%); opacity: 0.95; transition: bottom 0.2s ease-out, opacity 0.2s ease-out; }
+        .icon-overflow-indicator { position: absolute; left: 50%; transform: translateX(-50%); font-size: 0.8em; color: #333; font-weight: bold; background-color: rgba(255,255,255,0.85); padding: 1px 4px; border-radius: 4px; z-index: 10; }
+        .count-adjust-buttons { display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 8px; }
+        .count-adjust-button { background-color: #778899; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 0.9em; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; padding: 0; }
+        .count-adjust-button:hover { background-color: #506070; }
+        .count-adjust-button:disabled { background-color: #cccccc; cursor: not-allowed;}
+        .bucket { width: 60px; height: 80px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120"><path d="M10 10 L20 110 H80 L90 10 H10 Z" fill="%23CD853F" stroke="%238B4513" stroke-width="5"/><line x1="5" y1="20" x2="95" y2="20" stroke="%23A0522D" stroke-width="8"/><ellipse cx="50" cy="15" rx="48" ry="8" fill="rgba(0,0,0,0.1)"/></svg>'); background-size: contain; background-repeat: no-repeat; background-position: center; cursor: pointer; transition: transform 0.2s ease-out; position: relative; }
+        .bucket.no-click { cursor: default; } 
+        .bucket:hover:not(.no-click) { transform: scale(1.1); }
+        .bucket:active:not(.no-click) { transform: scale(1.05); }
+        .bucket-label { font-size: 0.8em; color: #555; margin-top: 5px; text-align: center; }
+        .bucket-label strong { color: #000; }
+        .bucket-label sup, .bucket-label sub { font-size: 0.8em; }
+        .bucket-counter { font-size: 1.2em; color: #D2691E; font-weight: bold; margin-top: 5px; min-height: 1.5em; }
+        
+        .message-area { width:100%; margin-top: 20px; font-size: 1.1em; color: #DC143C; font-weight: bold; min-height: 2.5em; transition: opacity 0.5s ease; }
+        .message-area sup, .message-area sub { font-size: 0.85em; }
+        .result-area { width:90%; max-width:800px; margin-top: 20px; padding: 15px; background-color: #FFFACD; border: 2px dashed #FFD700; border-radius: 10px; font-size: 1.2em; word-break: break-all; }
+        .result-area strong { color: #228B22; } .result-area sub { font-size: 0.8em; }
+
+        .water-particle { position: absolute; width: 10px; height: 10px; background-color: #1E90FF; border-radius: 50%; animation-name: drop; animation-duration: 0.6s; animation-timing-function: cubic-bezier(0.3, 0, 0.8, 0.4); animation-fill-mode: forwards; z-index: 1000; pointer-events: none; opacity: 1; }
+        
+        .confetti { position: fixed; width: 10px; height: 10px; background-color: red; opacity: 0.7; animation: fall 3s linear forwards; pointer-events: none; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+
+        /* Default Order (for 10-to-N primarily) */
+        .controls { order: 1; }
+        .water-tank-container { order: 2; }
+        #total-water-display { order: 3; margin-top: 5px; } 
+        .buckets-area { order: 4; }
+        .n-to-10-controls { order: 5; } 
+        .message-area { order: 6; }
+        .result-area { order: 7; }
+
+        /* Mode-specific styles */
+        .mode-10-to-n .n-to-10-specific { display: none; }
+        .mode-n-to-10 .ten-to-n-specific { display: none; }
+        .mode-n-to-10 .carry-button-wrapper { display: none; }
+
+        .mode-n-to-10 .controls { order: 1; } 
+        .mode-n-to-10 .buckets-area { order: 2; margin-top: 20px; margin-bottom: 10px;} 
+        .mode-n-to-10 .n-to-10-controls { order: 3; margin-bottom: 20px;} 
+        .mode-n-to-10 .water-tank-container { order: 4; margin-top: 10px; } 
+        .mode-n-to-10 #total-water-display { order: 5; margin-top: 5px; } 
+        .mode-n-to-10 .message-area { order: 6; }
+        .mode-n-to-10 .result-area { order: 7; }
+    </style>
+</head>
+<body>
+    <div class="mode-selection-container" id="mode-selector-container">
+        <h2>选择游戏模式</h2>
+        <button class="mode-button" id="select-10-to-n">十进制 转 N进制</button>
+        <button class="mode-button" id="select-n-to-10">N进制 转 十进制</button>
+    </div>
+
+    <div class="game-main-content" id="game-area"> 
+        <h1 id="game-title">水桶大挑战 - 进制转换！</h1>
+        <div class="controls">
+            <span class="ten-to-n-specific">
+                <label for="initial-water">初始水量 (可小数):</label>
+                <input type="number" id="initial-water" value="10.75" step="any" min="0">
+            </span>
+            <label for="base-selector">选择进制 (N):</label>
+            <select id="base-selector">
+                <option value="2">二进制 (2)</option>
+                <option value="4">四进制 (4)</option> <!-- Added 4-base -->
+                <option value="8">八进制 (8)</option>
+                <option value="10">十进制 (10)</option>
+                <option value="16">十六进制 (16)</option>
+            </select>
+            <button id="start-game">开始/重置游戏</button>
+            <button id="back-to-mode-select-top">返回模式选择</button> 
+        </div>
+
+        <div class="water-tank-container" id="water-tank-visual">
+            <div class="water-level" id="water-level"></div>
+        </div>
+        <div id="total-water-display">总水量: 0 升</div>
+
+        <div class="buckets-area" id="buckets-area"></div>
+
+        <div class="n-to-10-controls n-to-10-specific">
+            <button id="calculate-n-to-10">开始计算 (最高位优先)</button>
+        </div>
+
+        <div class="message-area" id="message-area"></div>
+        <div class="result-area" id="result-area">结果将显示在这里！</div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const modeSelectorContainer = document.getElementById('mode-selector-container');
+        const gameArea = document.getElementById('game-area');
+        const select10ToNButton = document.getElementById('select-10-to-n');
+        const selectNTo10Button = document.getElementById('select-n-to-10');
+        const backToModeSelectButtonTop = document.getElementById('back-to-mode-select-top'); 
+        
+        const gameTitle = document.getElementById('game-title');
+        const initialWaterInput = document.getElementById('initial-water');
+        const baseSelector = document.getElementById('base-selector');
+        const startGameButton = document.getElementById('start-game');
+        const waterTankVisual = document.getElementById('water-tank-visual');
+        const waterLevelDiv = document.getElementById('water-level');
+        const totalWaterDisplay = document.getElementById('total-water-display');
+        const bucketsArea = document.getElementById('buckets-area');
+        const calculateNTo10Button = document.getElementById('calculate-n-to-10');
+        const messageArea = document.getElementById('message-area');
+        const resultArea = document.getElementById('result-area');
+        const gameContainerForParticles = document.getElementById('game-area'); 
+
+        // --- Game State & Constants ---
+        let currentGamemode = null; 
+        let totalWater = 0;
+        let currentBase = 2;
+        let bucketData = []; 
+        let nTo10CalculationStep = -1; 
+        let nTo10BucketsToProcess = []; 
+
+        const EPSILON = 1e-9; 
+        const CALCULATION_PRECISION = 10;
+        const DISPLAY_PRECISION = 5;
+        const MAX_INTEGER_BUCKETS_CONFIG = 7; 
+        const MAX_FRACTIONAL_BUCKETS_CONFIG = 4;
+        const MAX_VISUAL_ICONS = 5; 
+        const ICON_FONT_SIZE_PX = 16;
+        const ICON_LINE_HEIGHT_MULTIPLIER = 1;
+        const ICON_SPACING_PX = -4;
+        const BUCKET_EMOJI = '🪣';
+
+
+        // --- Mode Selection & Event Listeners ---
+        select10ToNButton.addEventListener('click', () => setupGameMode('10-to-n'));
+        selectNTo10Button.addEventListener('click', () => setupGameMode('n-to-10'));
+        backToModeSelectButtonTop.addEventListener('click', () => { 
+            gameArea.style.display = 'none';
+            modeSelectorContainer.style.display = 'block';
+            currentGamemode = null;
+            document.body.className = ''; 
+            resetNTo10State();
+        });
+        startGameButton.addEventListener('click', startGame);
+        calculateNTo10Button.addEventListener('click', processNextNTo10Step);
+
+
+        function setupGameMode(mode) { 
+            currentGamemode = mode;
+            modeSelectorContainer.style.display = 'none';
+            gameArea.style.display = 'flex'; 
+            document.body.className = ''; 
+            document.body.classList.add(mode === '10-to-n' ? 'mode-10-to-n' : 'mode-n-to-10');
+
+            if (mode === '10-to-n') {
+                gameTitle.textContent = '水桶挑战 - 十进制 转 N进制';
+                totalWaterDisplay.textContent = '剩余水量: 0 升';
+                initialWaterInput.value = "10.75";
+                resultArea.innerHTML = "转换结果将显示在这里！";
+            } else { 
+                gameTitle.textContent = '水桶挑战 - N进制 转 十进制';
+                totalWaterDisplay.textContent = '大水缸当前水量: 0 升'; 
+                resultArea.innerHTML = "请设置各桶数量后，点击按钮逐步计算。";
+            }
+            resetNTo10State(); 
+            startGame(); 
+        }
+
+        function resetNTo10State() {
+            nTo10CalculationStep = -1;
+            nTo10BucketsToProcess = [];
+            calculateNTo10Button.textContent = '开始计算 (最高位优先)';
+            calculateNTo10Button.disabled = false;
+            document.querySelectorAll('.bucket-container.highlighted, .bucket-container.processed').forEach(el => {
+                el.classList.remove('highlighted', 'processed');
+            });
+        }
+
+        function startGame() { 
+            currentBase = parseInt(baseSelector.value);
+            
+            if (currentGamemode === '10-to-n') {
+                totalWater = parseFloat(initialWaterInput.value);
+                if (isNaN(totalWater) || totalWater < 0) {
+                    showMessage("请输入有效的初始水量！", true); return;
+                }
+                totalWater = parseFloat(totalWater.toFixed(CALCULATION_PRECISION));
+            } else { 
+                totalWater = 0; 
+            }
+            initialTankCapacity = currentGamemode === '10-to-n' 
+                ? Math.max(totalWater, 1) 
+                : 100; 
+
+            generateAndFilterBuckets(); 
+            generateBucketsHTML();      
+            updateDisplay();
+
+            if (currentGamemode === '10-to-n') {
+                showMessage("游戏开始！点击水桶装水吧！");
+            } else {
+                showMessage("请调整各桶的计数，然后点击按钮逐步计算。");
+                resetNTo10State(); 
+            }
+        }
+
+        function generateAndFilterBuckets() {
+            bucketData = []; 
+            let tempPotentialBuckets = [];
+
+            let maxIntBuckets = MAX_INTEGER_BUCKETS_CONFIG;
+            if (currentBase === 2) maxIntBuckets = 9; 
+            else if (currentBase === 8 || currentBase === 4) maxIntBuckets = 8; // 4-base similar to 8-base for count
+            else if (currentBase === 16) maxIntBuckets = 6; 
+
+            let maxFracBuckets = MAX_FRACTIONAL_BUCKETS_CONFIG;
+            if (currentBase === 16) maxFracBuckets = 3; 
+
+            for (let i = maxFracBuckets; i >= 1; i--) {
+                tempPotentialBuckets.push({ power: -i, value: Math.pow(currentBase, -i), count: 0 });
+            }
+            tempPotentialBuckets.push({ power: 0, value: 1, count: 0 }); 
+            for (let i = 1; i <= maxIntBuckets; i++) {
+                tempPotentialBuckets.push({ power: i, value: Math.pow(currentBase, i), count: 0 });
+            }
+            
+            tempPotentialBuckets.sort((a, b) => a.power - b.power);
+
+            const minRelevantValueForDisplay = 1 / Math.pow(10, DISPLAY_PRECISION + 2);
+
+            bucketData = tempPotentialBuckets.filter(b => {
+                if (b.power === 0) return true; 
+
+                if (b.power < 0 && b.value < minRelevantValueForDisplay && Math.abs(b.power) > Math.max(1, maxFracBuckets -1) ) {
+                    return false;
+                }
+
+                if (currentGamemode === '10-to-n') {
+                    if (totalWater === 0 && b.power > 0 && b.power !==0) return false; 
+                    if (totalWater > 0 && b.power > 0 && b.value > totalWater * currentBase * 1.8 && b.power > 1) { 
+                        return false;
+                    }
+                    if (totalWater > 0 && totalWater < 1 && b.power < 0 && b.value < totalWater / Math.pow(currentBase, Math.max(1,maxFracBuckets-1)) && Math.abs(b.power) > 1) {
+                         return false;
+                    }
+                }
+                return true;
+            });
+            
+            bucketData.forEach(b => {
+                b.value = parseFloat(b.value.toFixed(CALCULATION_PRECISION));
+            });
+        }
+
+        function generateBucketsHTML() { 
+            bucketsArea.innerHTML = ''; 
+            if (bucketData.length === 0) return;
+
+            const integerBucketGroup = document.createElement('div');
+            integerBucketGroup.classList.add('bucket-group', 'integer-buckets');
+            const fractionalBucketGroup = document.createElement('div');
+            fractionalBucketGroup.classList.add('bucket-group', 'fractional-buckets');
+
+            const createBucketHTML = (bucketInfo, indexInGlobalArray) => {
+                const bucketContainer = document.createElement('div');
+                bucketContainer.classList.add('bucket-container');
+                
+                const carryButtonWrapper = document.createElement('div');
+                carryButtonWrapper.classList.add('carry-button-wrapper');
+                carryButtonWrapper.id = `carry-wrapper-${bucketInfo.power}`;
+                bucketContainer.appendChild(carryButtonWrapper);
+
+                const iconsContainer = document.createElement('div');
+                iconsContainer.classList.add('stacked-icons-container');
+                iconsContainer.id = `icons-${bucketInfo.power}`;
+                bucketContainer.appendChild(iconsContainer);
+
+                const bucketDiv = document.createElement('div');
+                bucketDiv.classList.add('bucket');
+                bucketDiv.dataset.index = indexInGlobalArray; 
+                if (currentGamemode === '10-to-n') {
+                    bucketDiv.title = `点击装 ${formatBucketValue(bucketInfo.value)} 升水`;
+                    bucketDiv.addEventListener('click', () => fillBucket(indexInGlobalArray, bucketDiv));
+                } else {
+                    bucketDiv.title = `调整此桶数量`;
+                    bucketDiv.classList.add('no-click');
+                }
+                bucketContainer.appendChild(bucketDiv);
+                
+                const label = document.createElement('div');
+                label.classList.add('bucket-label');
+                label.innerHTML = `<strong>${formatBucketValue(bucketInfo.value)}L</strong> (${currentBase}<sup>${bucketInfo.power}</sup>)`;
+                bucketContainer.appendChild(label);
+                
+                const counter = document.createElement('div');
+                counter.classList.add('bucket-counter');
+                counter.id = `counter-${bucketInfo.power}`;
+                counter.textContent = bucketInfo.count; 
+                bucketContainer.appendChild(counter);
+
+                if (currentGamemode === 'n-to-10') {
+                    const adjustContainer = document.createElement('div');
+                    adjustContainer.classList.add('count-adjust-buttons');
+                    const minusBtn = document.createElement('button');
+                    minusBtn.classList.add('count-adjust-button');
+                    minusBtn.textContent = '-';
+                    minusBtn.addEventListener('click', () => adjustBucketCount(indexInGlobalArray, -1));
+                    const plusBtn = document.createElement('button');
+                    plusBtn.classList.add('count-adjust-button');
+                    plusBtn.textContent = '+';
+                    plusBtn.addEventListener('click', () => adjustBucketCount(indexInGlobalArray, 1));
+                    adjustContainer.appendChild(minusBtn);
+                    adjustContainer.appendChild(plusBtn);
+                    bucketContainer.appendChild(adjustContainer);
+                }
+                return bucketContainer;
+            };
+
+            bucketData.filter(b => b.power >= 0)
+                      .sort((a, b) => b.power - a.power) 
+                      .forEach(bInfo => {
+                          const globalIndex = bucketData.findIndex(gb => gb.power === bInfo.power);
+                          integerBucketGroup.appendChild(createBucketHTML(bInfo, globalIndex));
+                      });
+
+            bucketData.filter(b => b.power < 0)
+                      .sort((a, b) => b.power - a.power)  
+                      .forEach(bInfo => {
+                          const globalIndex = bucketData.findIndex(gb => gb.power === bInfo.power);
+                          fractionalBucketGroup.appendChild(createBucketHTML(bInfo, globalIndex));
+                      });
+            
+            if (integerBucketGroup.children.length > 0) bucketsArea.appendChild(integerBucketGroup);
+            if (integerBucketGroup.children.length > 0 && fractionalBucketGroup.children.length > 0) {
+                 const separator = document.createElement('div');
+                 separator.classList.add('decimal-separator');
+                 separator.textContent = ".";
+                 if (integerBucketGroup.nextSibling) {
+                    bucketsArea.insertBefore(separator, integerBucketGroup.nextSibling);
+                 } else {
+                    bucketsArea.appendChild(separator);
+                 }
+            }
+            if (fractionalBucketGroup.children.length > 0) bucketsArea.appendChild(fractionalBucketGroup);
+        }
+        
+        function formatBucketValue(value) { 
+            if (value >= 1 || value === 0) return value.toString();
+            let s = value.toFixed(DISPLAY_PRECISION + 2);
+            s = parseFloat(s).toString();
+            return s.length > 7 ? value.toPrecision(2) : s;
+        }
+
+        function fillBucket(index, bucketElement) { 
+            if (currentGamemode !== '10-to-n') return;
+            if (index < 0 || index >= bucketData.length) { console.error("Invalid bucket index in fillBucket:", index); return; }
+            const bucketInfo = bucketData[index];
+            const valueToFill = bucketInfo.value;
+
+            if (totalWater >= valueToFill - EPSILON) {
+                animateWaterTransfer(bucketElement, true); 
+                totalWater -= valueToFill;
+                totalWater = parseFloat(totalWater.toFixed(CALCULATION_PRECISION));
+                if (Math.abs(totalWater) < EPSILON) totalWater = 0;
+                bucketInfo.count++;
+                showMessage(`${formatBucketValue(valueToFill)}升水已装入！`, false, true);
+                updateDisplay();
+                checkWinCondition();
+            } else {
+                showMessage(`水不够啦！这个桶需要 ${formatBucketValue(valueToFill)} 升水。`, true);
+                if(bucketElement) {
+                    bucketElement.style.animation = 'shake 0.5s';
+                    setTimeout(() => bucketElement.style.animation = '', 500);
+                }
+            }
+        }
+
+        function adjustBucketCount(index, delta) { 
+            if (currentGamemode !== 'n-to-10' || index < 0 || index >= bucketData.length) { console.error("Invalid bucket index in adjust:", index); return; }
+            const bucketInfo = bucketData[index];
+            const newCount = bucketInfo.count + delta;
+            if (newCount >= 0 && newCount < currentBase) {
+                bucketInfo.count = newCount;
+                if (nTo10CalculationStep !== -1) {
+                    totalWater = 0; 
+                    resetNTo10State();
+                    showMessage("水桶数量已更改，请重新开始计算。", false);
+                }
+                const counterEl = document.getElementById(`counter-${bucketInfo.power}`);
+                if(counterEl) {
+                    counterEl.style.transform = 'scale(1.2)';
+                    setTimeout(() => counterEl.style.transform = 'scale(1)', 150);
+                }
+                updateDisplay(); 
+            } else if (newCount < 0) {
+                showMessage("桶数不能小于0！", true, true);
+            } else { 
+                showMessage(`在这个进制下，单个桶的计数不能超过 ${currentBase - 1}！`, true, true);
+            }
+        }
+        
+        const styleSheet = document.styleSheets[0];
+        if (styleSheet) { 
+            try { 
+                styleSheet.insertRule(`@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }`, styleSheet.cssRules.length);
+            } catch (e) { console.warn("Shake animation rule error:", e); }
+        }
+
+        function carryOver(index) { 
+            if (currentGamemode !== '10-to-n' || index < 0 || index + 1 >= bucketData.length) { console.error("Invalid index for carryOver:", index, "bucketData.length:", bucketData.length); return; }
+            const currentBucket = bucketData[index];
+            const nextBucket = bucketData[index+1]; 
+
+            if (!currentBucket || !nextBucket) { console.error("Bucket not found for carryOver"); return;}
+
+            if (currentBucket.count >= currentBase) {
+                const currentBucketEl = document.querySelector(`.bucket[data-index="${index}"]`);
+                const nextBucketEl = document.querySelector(`.bucket[data-index="${index+1}"]`);
+                if(currentBucketEl && nextBucketEl) animateBucketPour(currentBucketEl, nextBucketEl);
+
+                currentBucket.count -= currentBase;
+                nextBucket.count++;
+                showMessage(`进位成功！从 ${currentBase}<sup>${currentBucket.power}</sup> 桶进位到 ${currentBase}<sup>${nextBucket.power}</sup> 桶。`);
+                updateDisplay();
+                checkWinCondition();
+            }
+        }
+
+        function updateDisplay() {
+            let waterPercentage;
+            if (currentGamemode === '10-to-n') {
+                let currentInitialWater = parseFloat(initialWaterInput.value);
+                if (isNaN(currentInitialWater) || currentInitialWater < 0) currentInitialWater = 0;
+                initialTankCapacity = Math.max(totalWater, 1, currentInitialWater); 
+                waterPercentage = initialTankCapacity > 0 ? (totalWater / initialTankCapacity) * 100 : 0;
+                totalWaterDisplay.textContent = `剩余水量: ${totalWater.toFixed(DISPLAY_PRECISION)} 升`;
+            } else { 
+                let potentialMax = 0; 
+                bucketData.forEach(b => potentialMax += (currentBase -1) * b.value);
+                initialTankCapacity = Math.max(1, potentialMax, totalWater); 
+                
+                waterPercentage = initialTankCapacity > 0 ? (totalWater / initialTankCapacity) * 100 : 0;
+                totalWaterDisplay.textContent = `大水缸当前水量: ${totalWater.toFixed(DISPLAY_PRECISION)} 升`; 
+            }
+            waterLevelDiv.style.height = `${Math.min(waterPercentage, 100)}%`;
+
+            bucketData.forEach((bucketInfo, i) => { 
+                const counterDiv = document.getElementById(`counter-${bucketInfo.power}`);
+                if (counterDiv) counterDiv.textContent = bucketInfo.count;
+
+                const carryWrapper = document.getElementById(`carry-wrapper-${bucketInfo.power}`);
+                if (carryWrapper) {
+                    carryWrapper.innerHTML = ''; 
+                    if (currentGamemode === '10-to-n' && bucketInfo.count >= currentBase && i + 1 < bucketData.length) {
+                        const carryBtn = document.createElement('button');
+                        carryBtn.classList.add('carry-button');
+                        carryBtn.innerHTML = '⇧';
+                        carryBtn.title = `进位到 ${currentBase}<sup>${bucketData[i+1].power}</sup> 桶`;
+                        carryBtn.onclick = () => carryOver(i); 
+                        carryWrapper.appendChild(carryBtn);
+                    }
+                }
+                
+                const iconsCtrl = document.getElementById(`icons-${bucketInfo.power}`);
+                if (iconsCtrl) {
+                    iconsCtrl.innerHTML = ''; 
+                    const count = bucketInfo.count;
+                    const iconsToRender = Math.min(count, MAX_VISUAL_ICONS);
+                    for (let k = 0; k < iconsToRender; k++) {
+                        const icon = document.createElement('div');
+                        icon.classList.add('stacked-icon');
+                        icon.textContent = BUCKET_EMOJI;
+                        const emojiApproxHeight = ICON_FONT_SIZE_PX * ICON_LINE_HEIGHT_MULTIPLIER;
+                        icon.style.bottom = `${k * (emojiApproxHeight + ICON_SPACING_PX)}px`;
+                        iconsCtrl.appendChild(icon);
+                    }
+                    if (count > MAX_VISUAL_ICONS) {
+                        const moreIndicator = document.createElement('div');
+                        moreIndicator.classList.add('icon-overflow-indicator');
+                        moreIndicator.textContent = `+${count - MAX_VISUAL_ICONS}`;
+                        const emojiApproxHeight = ICON_FONT_SIZE_PX * ICON_LINE_HEIGHT_MULTIPLIER;
+                        moreIndicator.style.bottom = `${iconsToRender * (emojiApproxHeight + ICON_SPACING_PX)}px`;
+                        iconsCtrl.appendChild(moreIndicator);
+                    }
+                }
+
+                if (currentGamemode === 'n-to-10') {
+                    const bucketContainerElement = document.querySelector(`.bucket[data-index="${i}"]`)?.closest('.bucket-container');
+                    if (bucketContainerElement) {
+                        const minusBtn = bucketContainerElement.querySelector('.count-adjust-button:first-child');
+                        const plusBtn = bucketContainerElement.querySelector('.count-adjust-button:last-child');
+                        if (minusBtn) minusBtn.disabled = bucketInfo.count <= 0 || nTo10CalculationStep !== -1; 
+                        if (plusBtn) plusBtn.disabled = bucketInfo.count >= currentBase - 1 || nTo10CalculationStep !== -1; 
+                    }
+                }
+            });
+             if (currentGamemode === '10-to-n') display10ToNResult();
+        }
+        
+        function getHexDigit(digit) { 
+            if (currentBase === 16 && digit >= 10 && digit <= 15) return String.fromCharCode(55 + digit);
+            if (digit >= currentBase) return `(${digit}?)`; 
+            return digit.toString();
+        }
+
+        function display10ToNResult() {
+            let integerPartStr = ""; 
+            let fractionalPartStr = "";
+            
+            let firstIntDigitFound = false;
+            bucketData.filter(b => b.power >= 0)
+                      .sort((a,b) => b.power - a.power) 
+                      .forEach(bucket => {
+                          const digit = getHexDigit(bucket.count);
+                          if (bucket.power === 0 || firstIntDigitFound || digit !== "0" ) { 
+                            integerPartStr += digit; 
+                            if (digit !== "0" || bucket.power === 0) firstIntDigitFound = true; // Ensure 0. becomes 0.
+                          }
+                      });
+            if (integerPartStr === "" && bucketData.some(b => b.power === 0)) { // If only n^0 was 0 and it was the only int part
+                integerPartStr = "0";
+            } else if (integerPartStr === "" && !bucketData.some(b => b.power === 0)) {
+                 integerPartStr = "0"; 
+            }
+
+
+            let lastNonZeroFracIndex = -1;
+            const fracBuckets = bucketData.filter(b => b.power < 0).sort((a,b) => b.power - a.power); 
+            
+            fracBuckets.forEach((bucket, idx) => {
+                const digit = getHexDigit(bucket.count);
+                fractionalPartStr += digit;
+                if (digit !== "0") {
+                    lastNonZeroFracIndex = idx;
+                }
+            });
+
+            if (lastNonZeroFracIndex !== -1) {
+                fractionalPartStr = fractionalPartStr.substring(0, lastNonZeroFracIndex + 1);
+            } else {
+                fractionalPartStr = ""; 
+            }
+
+            let finalResult = integerPartStr;
+            if (fractionalPartStr.length > 0) {
+                finalResult += "." + fractionalPartStr;
+            }
+            
+            let initialDVal = "0";
+            if (initialWaterInput.value && !isNaN(parseFloat(initialWaterInput.value))) {
+                initialDVal = parseFloat(initialWaterInput.value).toFixed(DISPLAY_PRECISION);
+                initialDVal = parseFloat(initialDVal).toString(); 
+            }
+            resultArea.innerHTML = `十进制数 ${initialDVal} 转换为 <strong>${currentBase}进制</strong> 是: <strong>${finalResult}<sub>(${currentBase})</sub></strong>`;
+        }
+        
+        function processNextNTo10Step() {
+            if (currentGamemode !== 'n-to-10') return;
+
+            if (nTo10CalculationStep === -1) {
+                totalWater = 0; 
+                updateDisplay(); 
+
+                nTo10BucketsToProcess = bucketData
+                    .filter(b => b.count > 0)
+                    .sort((a, b) => b.power - a.power); 
+
+                if (nTo10BucketsToProcess.length === 0) {
+                    showMessage("没有水可以倒入水缸！请先在水桶中设置数量。", true);
+                    resultArea.innerHTML = `N进制数 0<sub>(${currentBase})</sub> 转换为 十进制 是: <strong>0</strong>`;
+                    return;
+                }
+                nTo10CalculationStep = 0;
+                calculateNTo10Button.textContent = `倒入下一个桶的水`;
+                document.querySelectorAll('.count-adjust-button').forEach(btn => btn.disabled = true);
+            }
+
+            if (nTo10CalculationStep >= nTo10BucketsToProcess.length) {
+                const finalNBaseString = buildNBaseString();
+                resultArea.innerHTML = `<strong>${currentBase}进制</strong> 数 ${finalNBaseString}<sub>(${currentBase})</sub> 转换为 <strong>十进制</strong> 是: <strong>${totalWater.toFixed(DISPLAY_PRECISION)}</strong>`;
+                showMessage("所有水桶已计算完毕！", false);
+                calculateNTo10Button.textContent = '计算完成';
+                calculateNTo10Button.disabled = true;
+                if (totalWater > EPSILON) triggerConfetti();
+                document.querySelectorAll('.bucket-container.highlighted').forEach(el => el.classList.remove('highlighted'));
+                document.querySelectorAll('.bucket-container.processed').forEach(el => el.classList.remove('processed'));
+                return;
+            }
+
+            const bucketToProcessInfo = nTo10BucketsToProcess[nTo10CalculationStep];
+            const bucketGlobalIndex = bucketData.findIndex(b => b.power === bucketToProcessInfo.power);
+            const bucketElement = document.querySelector(`.bucket[data-index="${bucketGlobalIndex}"]`);
+            const bucketContainerElement = bucketElement?.closest('.bucket-container');
+
+            document.querySelectorAll('.bucket-container.highlighted').forEach(el => {
+                el.classList.remove('highlighted');
+                el.classList.add('processed');
+            });
+            if (bucketContainerElement) {
+                bucketContainerElement.classList.remove('processed'); // Remove processed if re-highlighting
+                bucketContainerElement.classList.add('highlighted');
+            }
+
+
+            if (bucketToProcessInfo && bucketToProcessInfo.count > 0) {
+                const addedWater = bucketToProcessInfo.count * bucketToProcessInfo.value;
+                
+                if (bucketElement) {
+                    animateWaterTransfer(bucketElement, false, bucketToProcessInfo.count);
+                }
+                
+                setTimeout(() => {
+                    totalWater += addedWater;
+                    totalWater = parseFloat(totalWater.toFixed(CALCULATION_PRECISION));
+                    
+                    let calculationStepMsg = `倒入 ${currentBase}<sup>${bucketToProcessInfo.power}</sup> 桶 (${formatBucketValue(bucketToProcessInfo.value)}L/个): `;
+                    calculationStepMsg += `${bucketToProcessInfo.count} × ${formatBucketValue(bucketToProcessInfo.value)}L = ${addedWater.toFixed(DISPLAY_PRECISION)}L<br>`;
+                    calculationStepMsg += `大水缸当前总量: ${totalWater.toFixed(DISPLAY_PRECISION)}L`;
+                    showMessage(calculationStepMsg, false, true); // Make it temporary so next step message replaces it
+                    updateDisplay(); 
+
+                    if (nTo10CalculationStep === nTo10BucketsToProcess.length - 1) {
+                        calculateNTo10Button.textContent = '查看最终结果';
+                    }
+
+                }, 300); 
+            }
+            
+            nTo10CalculationStep++;
+        }
+
+        function buildNBaseString() { 
+            let intPartN = ""; let fracPartN = ""; let firstIntFoundN = false;
+            bucketData.filter(b => b.power >= 0)
+                      .sort((a,b) => b.power - a.power) 
+                      .forEach(b => {
+                        const digitN = getHexDigit(b.count);
+                        if (digitN !== "0" || firstIntFoundN || b.power === 0) {
+                            intPartN += digitN;
+                            if (digitN !== "0" || b.power ===0) firstIntFoundN = true;
+                        }
+                      });
+            if (intPartN === "" && bucketData.some(b => b.power === 0)) intPartN = "0"; 
+            else if (intPartN === "") intPartN = "0";
+
+
+            let lastNonZeroFracIdxN = -1;
+            const fracBucketsN = bucketData.filter(b => b.power < 0).sort((a,b) => b.power - a.power); 
+            fracBucketsN.forEach((b, idx) => {
+                const digitN = getHexDigit(b.count);
+                fracPartN += digitN;
+                if (digitN !== "0") lastNonZeroFracIdxN = idx;
+            });
+             if (lastNonZeroFracIdxN !== -1) fracPartN = fracPartN.substring(0, lastNonZeroFracIdxN + 1);
+             else fracPartN = "";
+            return intPartN + (fracPartN.length > 0 ? "." + fracPartN : "");
+        }
+
+        function showMessage(msg, isError = false, isTemporary = false) { 
+            messageArea.innerHTML = msg; 
+            messageArea.style.color = isError ? '#DC143C' : '#006400'; // DarkGreen for success
+            messageArea.style.opacity = '1';
+            if (isTemporary) setTimeout(() => { 
+                // Only clear if it's the same message, to avoid clearing a new error/message too soon
+                if (messageArea.innerHTML === msg) messageArea.style.opacity = '0'; 
+            }, isTemporary === true ? 3000: 4000); // Longer for calculation steps
+        }
+        
+        function checkWinCondition() { /* ... (same) ... */ }
+        function createDropKeyframes(name, startX, startY, endX, endY, isArcUp = true) { /* ... (same) ... */ }
+        function animateWaterTransfer(sourceElement, fromTankToBucket, quantity = 1) { /* ... (same) ... */ }
+        function animateBucketPour(fromBucketEl, toBucketEl) { /* ... (same) ... */ }
+        function triggerConfetti() { /* ... (same) ... */ }
+        
+        // Initial setup
+        modeSelectorContainer.style.display = 'block';
+        gameArea.style.display = 'none';
+    </script>
+</body>
+</html>
