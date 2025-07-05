@@ -3,150 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>游戏主页 (实时 API)</title>
+    <title>游戏主页 (GitHub Pages)</title>
     <style>
-        /* 页面基本样式 */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-
-        /* 页面主标题 */
-        h1 {
-            text-align: center;
-            color: #1a2c4e;
-            margin-bottom: 40px;
-        }
-
-        /* 游戏容器，使用 Flexbox 布局 */
-        #game-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 30px; /* 卡片之间的间距 */
-        }
-
-        /* 游戏卡片样式 */
-        .game-card {
-            background-color: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            overflow: hidden; /* 隐藏超出圆角的部分 */
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            width: 350px; /* 卡片固定宽度 */
-        }
-
-        /* 鼠标悬停时，卡片轻微上浮并加深阴影 */
-        .game-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-        }
-
-        /* 卡片链接样式 */
-        .game-card a {
-            text-decoration: none; /* 去除下划线 */
-            color: inherit; /* 继承父元素颜色 */
-            display: block;
-        }
-
-        /* iframe 缩略图样式 */
-        .game-thumbnail {
-            width: 100%;
-            height: 220px;
-            border: none; /* 去除 iframe 边框 */
-            pointer-events: none; /* 禁用 iframe 内部的鼠标事件，使得点击可以触发外层 a 标签的跳转 */
-        }
-
-        /* 卡片标题样式 */
-        .game-card h3 {
-            font-size: 1.2rem;
-            text-align: center;
-            padding: 15px;
-            margin: 0;
-            border-top: 1px solid #eee;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* 加载中或错误消息的样式 */
-        .message {
-            text-align: center;
-            font-size: 1.2rem;
-            color: #666;
-            width: 100%;
-        }
-        .error {
-            color: #d9534f;
-        }
-
+        /* 样式与之前版本相同 */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        h1 { text-align: center; color: #1a2c4e; margin-bottom: 40px; }
+        #game-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 30px; }
+        .game-card { background-color: #ffffff; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); overflow: hidden; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; width: 350px; }
+        .game-card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); }
+        .game-card a { text-decoration: none; color: inherit; display: block; }
+        .game-thumbnail { width: 100%; height: 220px; border: none; pointer-events: none; }
+        .game-card h3 { font-size: 1.2rem; text-align: center; padding: 15px; margin: 0; border-top: 1px solid #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .message { text-align: center; font-size: 1.2rem; color: #666; width: 100%; }
+        .error { color: #d9534f; }
     </style>
 </head>
 <body>
 
     <h1>游戏中心</h1>
-
-    <!-- 这个容器将由 JavaScript 动态填充 -->
     <div id="game-container">
         <p class="message">正在加载游戏列表...</p>
     </div>
 
     <script>
-        // 页面加载完成后执行的异步函数
         window.onload = async function() {
             const apiUrl = 'https://api.github.com/repos/1505494529/game/contents/game';
+            // 定义您的 GitHub Pages 网站的基础 URL
+            const githubPagesBaseUrl = 'https://1505494529.github.io/game/';
             const container = document.getElementById('game-container');
 
             try {
-                // 1. 发起 API 请求
                 const response = await fetch(apiUrl);
-                
-                // 2. 检查响应是否成功
                 if (!response.ok) {
-                    throw new Error(`网络错误: ${response.status} ${response.statusText}`);
+                    throw new Error(`网络错误: ${response.status}`);
                 }
-
-                // 3. 解析 JSON 数据
                 const gameData = await response.json();
 
-                // 清空“加载中”的提示信息
                 container.innerHTML = ''; 
 
-                // 4. 遍历数据并生成卡片
                 gameData.forEach(game => {
                     if (game.type !== 'file' || !game.name.endsWith('.html')) {
-                        return; // 只处理 .html 文件
+                        return;
                     }
                     
-                    // 将 GitHub 原始文件 URL 转换为可正确渲染 HTML 的 URL (raw.githack.com)
-                    const iframeSrc = game.download_url.replace('raw.githubusercontent.com', 'raw.githack.com');
+                    // *** 核心改动 ***
+                    // 拼接基础 URL 和文件路径来创建可玩的链接
+                    // 例如: "https://1505494529.github.io/game/" + "game/二分查找.html"
+                    const playableUrl = githubPagesBaseUrl + game.path;
                     
-                    // 创建一个新的 div 元素作为卡片
                     const card = document.createElement('div');
                     card.className = 'game-card';
                     
-                    // 填充卡片的 HTML 内容
                     card.innerHTML = `
-                        <a href="${game.html_url}" target="_blank" title="点击进入《${game.name}》">
-                            <iframe class="game-thumbnail" src="${iframeSrc}" scrolling="no" loading="lazy"></iframe>
+                        <a href="${playableUrl}" target="_blank" title="点击玩《${game.name}》">
+                            <iframe class="game-thumbnail" src="${playableUrl}" scrolling="no" loading="lazy"></iframe>
                             <h3>${game.name}</h3>
                         </a>
                     `;
                     
-                    // 将创建的卡片添加到容器中
                     container.appendChild(card);
                 });
 
-                // 如果遍历后容器仍为空（例如目录中没有html文件）
                 if (container.innerHTML === '') {
                     container.innerHTML = '<p class="message">未找到任何游戏文件。</p>';
                 }
 
             } catch (error) {
-                // 5. 如果发生错误，则显示错误信息
                 console.error('加载游戏数据失败:', error);
                 container.innerHTML = `<p class="message error">加载游戏列表失败！请检查网络连接或稍后再试。</p>`;
             }
