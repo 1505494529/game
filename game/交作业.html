@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第二站：智慧树与任务传递</title>
+    <style>
+        :root {
+            --bg-color: #f0f8ff;
+            --main-color: #4a90e2;
+            --accent-color: #f5a623;
+            --border-color: #000;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: var(--main-color);
+            font-size: 2.5em;
+            text-shadow: 2px 2px #ddd;
+        }
+
+        h2 {
+            margin-top: 40px;
+            border-bottom: 4px solid var(--border-color);
+            display: inline-block;
+            padding-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 4px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.15);
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .controls button {
+            padding: 12px 18px;
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--main-color);
+            color: white;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+        }
+
+        .controls button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+            transform: translate(2px, 2px);
+        }
+
+        .controls button:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+        }
+
+        .vis-area {
+            position: relative;
+            height: 400px; /* 调整高度以适应新布局 */
+            margin-top: 20px;
+            border: 3px dashed var(--accent-color);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .tree-node {
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            border: 3px solid var(--border-color);
+            border-radius: 50%;
+            background-color: var(--main-color);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+            z-index: 5;
+        }
+
+        .homework {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: var(--accent-color);
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            z-index: 10;
+            font-size: 20px;
+            line-height: 30px;
+            transition: all 1s ease-in-out;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>数据结构冒险岛</h1>
+    
+    <div class="container">
+        <h2>第二站：智慧树与任务传递</h2>
+        <p>任务从最底层的叶子节点（组员）开始，逐层向上汇集，直到根节点（课代表）。这完美地模拟了树的**后序遍历**。</p>
+        <div class="controls">
+            <button id="homework-btn">开始交作业！</button>
+            <button id="homework-reset-btn">重置</button>
+        </div>
+        <div id="tree-homework-area" class="vis-area">
+            <!-- SVG和节点将由JS动态生成 -->
+        </div>
+    </div>
+
+    <script>
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+    const homeworkArea = document.getElementById('tree-homework-area');
+    const startBtn = document.getElementById('homework-btn');
+    const resetBtn = document.getElementById('homework-reset-btn');
+
+    // 新布局：移除老师，课代表为根节点，整体上移，更宽敞
+    const homeworkNodes = {
+        rep:     { text: '课代表', pos: { x: '50%', y: '30px' } }, // 根节点
+        leader1: { text: '组长A', pos: { x: '25%', y: '150px' }, parent: 'rep' },
+        leader2: { text: '组长B', pos: { x: '50%', y: '150px' }, parent: 'rep' },
+        leader3: { text: '组长C', pos: { x: '75%', y: '150px' }, parent: 'rep' },
+        stu1:    { text: '组员1', pos: { x: '15%', y: '270px' }, parent: 'leader1' },
+        stu2:    { text: '组员2', pos: { x: '35%', y: '270px' }, parent: 'leader1' },
+        stu3:    { text: '组员3', pos: { x: '45%', y: '270px' }, parent: 'leader2' },
+        stu4:    { text: '组员4', pos: { x: '55%', y: '270px' }, parent: 'leader2' },
+        stu5:    { text: '组员5', pos: { x: '65%', y: '270px' }, parent: 'leader3' },
+        stu6:    { text: '组员6', pos: { x: '85%', y: '270px' }, parent: 'leader3' },
+    };
+
+    function drawHomeworkTree() {
+        homeworkArea.innerHTML = '';
+        startBtn.disabled = false;
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.id = 'homework-svg';
+        svg.setAttribute('style', 'position:absolute; top:0; left:0; width:100%; height:100%; z-index: 1;');
+        homeworkArea.appendChild(svg);
+        
+        for(const id in homeworkNodes) {
+            const data = homeworkNodes[id];
+            const node = document.createElement('div');
+            node.className = 'tree-node';
+            node.id = `hw-node-${id}`;
+            node.innerText = data.text;
+            node.style.left = data.pos.x;
+            node.style.top = data.pos.y;
+            node.style.transform = 'translateX(-50%)';
+            homeworkArea.appendChild(node);
+            homeworkNodes[id].el = node;
+        }
+
+        setTimeout(() => {
+            const svgCanvas = document.getElementById('homework-svg');
+            if (!svgCanvas) return;
+
+            for(const id in homeworkNodes) {
+                const data = homeworkNodes[id];
+                if (data.parent) {
+                    const parentData = homeworkNodes[data.parent];
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    
+                    // **修改点**: 使用getNodeCenter来获取父子节点的中心点
+                    const p1 = getNodeCenter(parentData.el);
+                    const p2 = getNodeCenter(data.el);
+
+                    line.setAttribute('x1', p1.x);
+                    line.setAttribute('y1', p1.y);
+                    line.setAttribute('x2', p2.x);
+                    line.setAttribute('y2', p2.y);
+                    line.setAttribute('stroke', getComputedStyle(document.documentElement).getPropertyValue('--border-color'));
+                    line.setAttribute('stroke-width', '4');
+                    svgCanvas.appendChild(line);
+                }
+            }
+        }, 0);
+    }
+
+    function getNodeCenter(nodeEl) {
+        const areaRect = homeworkArea.getBoundingClientRect();
+        const nodeRect = nodeEl.getBoundingClientRect();
+        return {
+            x: nodeRect.left - areaRect.left + nodeRect.width / 2,
+            y: nodeRect.top - areaRect.top + nodeRect.height / 2
+        };
+    }
+    
+    startBtn.onclick = async () => {
+        startBtn.disabled = true;
+        
+        const students = Object.keys(homeworkNodes).filter(id => id.startsWith('stu'));
+
+        students.forEach(id => {
+            const stuNode = homeworkNodes[id].el;
+            const center = getNodeCenter(stuNode);
+            const hw = document.createElement('div');
+            hw.className = 'homework';
+            hw.id = `hw-item-${id}`;
+            hw.innerText = '📖';
+            hw.style.left = `${center.x}px`;
+            hw.style.top = `${center.y}px`;
+            homeworkArea.appendChild(hw);
+        });
+
+        await sleep(500);
+
+        // 组员 -> 组长
+        students.forEach(id => {
+            const hwItem = document.getElementById(`hw-item-${id}`);
+            const leaderNode = homeworkNodes[homeworkNodes[id].parent].el;
+            const leaderCenter = getNodeCenter(leaderNode);
+            hwItem.style.left = `${leaderCenter.x}px`;
+            hwItem.style.top = `${leaderCenter.y}px`;
+        });
+        await sleep(1000);
+        
+        await sleep(500);
+
+        // 组长 -> 课代表 (动画终点)
+        const repNode = homeworkNodes.rep.el;
+        const repCenter = getNodeCenter(repNode);
+        document.querySelectorAll('.homework').forEach(hw => {
+            hw.style.left = `${repCenter.x}px`;
+            hw.style.top = `${repCenter.y}px`;
+        });
+        await sleep(1000);
+    };
+
+    resetBtn.onclick = drawHomeworkTree;
+
+    window.onload = drawHomeworkTree;
+    window.onresize = drawHomeworkTree;
+    </script>
+</body>
+</html>

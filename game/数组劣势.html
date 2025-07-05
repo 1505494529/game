@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第一站：数组方块阵</title>
+    <style>
+        :root {
+            --bg-color: #f0f8ff;
+            --main-color: #4a90e2;
+            --accent-color: #f5a623;
+            --success-color: #7ed321;
+            --slot-bg: #f0f0f0;
+            --border-color: #000;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 4px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.15);
+        }
+
+        h2, h3 { color: #333; }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .controls button, .controls select {
+            padding: 10px 15px;
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        .controls button {
+            background-color: var(--main-color);
+            color: white;
+            font-weight: bold;
+            transition: all 0.1s ease;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+        }
+
+        .controls button:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+        }
+        
+        .controls button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .vis-area {
+            position: relative;
+            min-height: 150px;
+            margin-top: 20px;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .element-container {
+            display: flex;
+            position: relative;
+        }
+
+        .cell {
+            width: 70px;
+            height: 70px;
+            background-color: var(--slot-bg);
+            border: 2px solid #ccc;
+            position: relative;
+            margin: 0 5px;
+        }
+
+        .element-value {
+            width: 60px;
+            height: 60px;
+            background-color: var(--success-color);
+            border: 3px solid var(--border-color);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: black;
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.4s ease-in-out, background-color 0.2s;
+        }
+
+        .label {
+            position: absolute;
+            bottom: -25px;
+            font-size: 1em;
+            color: var(--main-color);
+            font-weight: normal;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .highlight {
+            background-color: var(--accent-color) !important;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        .fade-out {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.1);
+        }
+        
+        .is-moving {
+            z-index: 100;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>数组特点</h2>
+        <p>数组是存放在一块<strong>连续内存空间</strong>中、<strong>相同类型</strong>元素的集合。</p>
+        
+        <div id="array-vis-area" class="vis-area"></div>
+        <p>下标，我们可以通过下标访问数组中的元素</p>
+
+        <h3>操作演示</h3>
+        <div class="controls">
+            <button id="array-insert-btn">插入元素 '99'</button>
+            到位置: 
+            <select id="array-insert-idx"></select>
+            <button id="array-delete-btn">删除位置 2 的元素</button>
+            <button id="array-access-btn">访问位置 4</button>
+            <button id="array-reset-btn">重置</button>
+        </div>
+    </div>
+    
+    <script>
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+    const arrayVisArea = document.getElementById('array-vis-area');
+    const initialArrayData = [10, 20, 30, 40, 50];
+    let arrayData = [...initialArrayData];
+    const ARRAY_MAX_SIZE = 8;
+    
+    // --- CORRECTED CALCULATION ---
+    // Total width = 5px(margin) + 2px(border) + 70px(width) + 2px(border) + 5px(margin) = 84px
+    const SLOT_WIDTH = 84; 
+    
+    let isAnimating = false;
+
+    function renderArray() {
+        arrayVisArea.innerHTML = '';
+        const container = document.createElement('div');
+        container.className = 'element-container';
+
+        for (let i = 0; i < ARRAY_MAX_SIZE; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.id = `array-cell-${i}`;
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.innerText = `arr[${i}]`;
+            cell.appendChild(label);
+            if (arrayData[i] !== undefined) {
+                const elementValue = document.createElement('div');
+                elementValue.className = 'element-value';
+                elementValue.id = `array-element-val-${i}`;
+                elementValue.innerText = arrayData[i];
+                cell.appendChild(elementValue);
+            }
+            container.appendChild(cell);
+        }
+        arrayVisArea.appendChild(container);
+        updateInsertOptions();
+    }
+
+    function updateInsertOptions() {
+        const select = document.getElementById('array-insert-idx');
+        select.innerHTML = '';
+        for (let i = 0; i <= arrayData.length; i++) {
+            if (i >= ARRAY_MAX_SIZE) break;
+            const option = document.createElement('option');
+            option.value = i;
+            option.innerText = `[${i}]`;
+            select.appendChild(option);
+        }
+        select.value = "2";
+    }
+
+    function setButtonsDisabled(disabled) {
+        isAnimating = disabled;
+        document.querySelectorAll('.controls button').forEach(btn => btn.disabled = disabled);
+    }
+    
+    document.getElementById('array-insert-btn').onclick = async () => {
+        if (isAnimating) return;
+        const idx = parseInt(document.getElementById('array-insert-idx').value);
+        if (arrayData.length >= ARRAY_MAX_SIZE) { alert('数组空间已满!'); return; }
+        
+        setButtonsDisabled(true);
+
+        const newValue = 99;
+        const newElement = document.createElement('div');
+        newElement.className = 'element-value';
+        newElement.innerText = newValue;
+        newElement.style.position = 'absolute';
+        newElement.style.top = '-80px';
+        newElement.style.left = `${(idx * SLOT_WIDTH) + (SLOT_WIDTH / 2)}px`;
+        newElement.style.transform = 'translateX(-50%)';
+        arrayVisArea.querySelector('.element-container').appendChild(newElement);
+        await sleep(100);
+
+        for (let i = arrayData.length - 1; i >= idx; i--) {
+            const el = document.getElementById(`array-element-val-${i}`);
+            el.classList.add('is-moving');
+            el.classList.add('highlight');
+            el.style.transform = `translate(-50%, -50%) translateX(${SLOT_WIDTH}px)`;
+            await sleep(150);
+            el.classList.remove('highlight');
+        }
+        await sleep(300);
+
+        newElement.style.top = '50%';
+        newElement.style.transform = 'translate(-50%, -50%)';
+        newElement.classList.add('highlight');
+        
+        await sleep(500);
+
+        arrayData.splice(idx, 0, newValue);
+        renderArray();
+        
+        document.getElementById(`array-element-val-${idx}`).classList.add('highlight');
+        await sleep(800);
+        document.getElementById(`array-element-val-${idx}`).classList.remove('highlight');
+
+        setButtonsDisabled(false);
+    };
+
+    document.getElementById('array-delete-btn').onclick = async () => {
+        if (isAnimating) return;
+        const idx = 2;
+        if (idx >= arrayData.length) { alert('该位置没有元素可删除!'); return; }
+
+        setButtonsDisabled(true);
+        const elementToRemove = document.getElementById(`array-element-val-${idx}`);
+
+        if (elementToRemove) {
+            elementToRemove.classList.add('fade-out');
+        }
+        await sleep(400);
+
+        for (let i = idx + 1; i < arrayData.length; i++) {
+            const el = document.getElementById(`array-element-val-${i}`);
+            el.classList.add('is-moving');
+            el.classList.add('highlight');
+            el.style.transform = `translate(-50%, -50%) translateX(-${SLOT_WIDTH}px)`;
+            await sleep(150);
+            el.classList.remove('highlight');
+        }
+        await sleep(300);
+
+        arrayData.splice(idx, 1);
+        renderArray();
+
+        setButtonsDisabled(false);
+    };
+
+    document.getElementById('array-access-btn').onclick = async () => {
+        if (isAnimating) return;
+        const idx = 4;
+        if (idx >= arrayData.length) { alert('该位置没有元素!'); return; }
+
+        setButtonsDisabled(true);
+        const element = document.getElementById(`array-element-val-${idx}`);
+        if (element) {
+            element.classList.add('highlight');
+            await sleep(1000);
+            element.classList.remove('highlight');
+        }
+        setButtonsDisabled(false);
+    };
+
+    document.getElementById('array-reset-btn').onclick = () => {
+        if (isAnimating) return;
+        arrayData = [...initialArrayData];
+        renderArray();
+    };
+    
+    window.onload = renderArray;
+    
+    </script>
+</body>
+</html>
