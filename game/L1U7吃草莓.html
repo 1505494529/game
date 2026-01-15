@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蔚蓝：回响山峰 - 循环的艺术 (v12.2 玩家定制版)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Fira+Code:wght@500&display=swap');
+
+        :root {
+            --glow-color: rgba(137, 207, 240, 0.7);
+        }
+
+        body {
+            margin: 0; padding: 0; background-color: #000; display: flex;
+            justify-content: center; align-items: center; height: 100vh;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+        #game-container-wrapper { position: relative; width: 1280px; height: 720px; }
+        #game-container {
+            position: absolute; width: 100%; height: 100%; overflow: hidden;
+            box-shadow: 0 0 45px var(--glow-color); border-radius: 16px;
+        }
+        canvas { background-color: #0c142c; }
+
+        #ui-wrapper {
+            position: absolute; top: 15px; left: 0; right: 0;
+            z-index: 10;
+            display: flex; flex-direction: column; align-items: center;
+            text-align: center;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        #level-selector {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 10px;
+            padding: 8px; background: rgba(12, 20, 44, 0.6); border-radius: 8px;
+        }
+        .level-button {
+            padding: 8px 16px; font-family: 'Noto Sans SC', sans-serif; font-weight: 700;
+            color: #a7c5e8; background-color: transparent;
+            border: 2px solid rgba(141, 195, 255, 0.4); border-radius: 6px;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .level-button:hover { background-color: rgba(141, 195, 255, 0.3); color: #fff; }
+        .level-button.active {
+            background-color: rgba(141, 195, 255, 0.6);
+            border-color: rgba(141, 195, 255, 0.8);
+            color: #fff; transform: scale(1.05);
+        }
+        
+        #ui-container {
+            display: inline-block;
+            padding: 20px 35px;
+            background-color: rgba(12, 20, 44, 0.75); backdrop-filter: blur(12px) saturate(150%);
+            border: 1px solid rgba(141, 195, 255, 0.4); border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(141, 195, 255, 0.2);
+            color: #e8effc;
+        }
+        
+        #results-container {
+            position: absolute; left: 50%; top: 50%;
+            transform: translate(-50%, -50%) scale(0.9); opacity: 0; display: none;
+            flex-direction: column; align-items: center; z-index: 20;
+            padding: 25px 40px; background-color: rgba(12, 20, 44, 0.85); 
+            backdrop-filter: blur(14px) saturate(180%);
+            border: 1px solid rgba(141, 195, 255, 0.5); border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(141, 195, 255, 0.25);
+            color: #e8effc; text-align: center;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        #level-info { margin-bottom: 15px; }
+        #level-title { font-size: 20px; font-weight: 700; color: #fff; margin: 0; }
+        #level-description { font-size: 14px; color: #a7c5e8; margin: 5px 0 0; max-width: 450px; display: inline-block; }
+        
+        #code-block { display: inline-block; text-align: left; margin-bottom: 15px; }
+        .code-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 22px; margin: 12px 0; white-space: pre; color: #dcdfe4;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace; font-weight: 500;
+            border-radius: 6px; padding: 4px 8px;
+            transition: box-shadow 0.3s ease, background-color 0.3s ease;
+            font-variant-ligatures: none;
+        }
+        
+        .code-line.editable {
+            background-color: rgba(137, 207, 240, 0.1);
+            box-shadow: inset 0 0 10px rgba(137, 207, 240, 0.3);
+        }
+        .code-line .keyword { color: #c586c0; }
+        .code-line .variable { color: #9cdcfe; }
+        .code-line .number { color: #b5cea8; }
+        .code-line .operator { color: #66d9ef; }
+        
+        .code-line input {
+            width: 50px; background-color: transparent; border: none;
+            color: #b5cea8; font-family: inherit; font-size: 22px;
+            text-align: center; padding: 6px; border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        .code-line input:not([disabled]) {
+            background-color: rgba(10, 15, 30, 0.7);
+            border: 1px solid rgba(141, 195, 255, 0.3);
+            cursor: text;
+        }
+        .code-line input:not([disabled]):focus {
+            outline: none; background-color: rgba(10, 15, 30, 0.9);
+            border-color: rgba(141, 195, 255, 0.7);
+            box-shadow: 0 0 15px var(--glow-color);
+        }
+        
+        .code-line #operator-select {
+            background: rgba(10, 15, 30, 0.7);
+            border: 1px solid rgba(141, 195, 255, 0.3);
+            color: #66d9ef;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 22px;
+            font-weight: 500;
+            padding: 5px;
+            border-radius: 5px;
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-variant-ligatures: none;
+        }
+        .code-line #operator-select:focus {
+            outline: none;
+            background-color: rgba(10, 15, 30, 0.9);
+            border-color: rgba(141, 195, 255, 0.7);
+            box-shadow: 0 0 15px var(--glow-color);
+        }
+        #operator-select { display: none; }
+        select:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        #execute-button, #retry-button {
+            margin-top: 10px; padding: 14px 30px; font-family: 'Noto Sans SC', sans-serif;
+            font-size: 18px; font-weight: 700; color: #fff;
+            background-image: linear-gradient(135deg, #6a82fb, #fc5c7d);
+            border: none; cursor: pointer; transition: all 0.3s ease;
+            border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            letter-spacing: 1px;
+        }
+        #execute-button:hover, #retry-button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); filter: brightness(1.15);
+        }
+        #execute-button:active, #retry-button:active { transform: translateY(-1px) scale(1); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
+        
+        #results-container h1 { font-size: 36px; margin-bottom: 15px; font-weight: 700; }
+        .success { color: #73f699; text-shadow: 0 0 10px #73f699; }
+        .fail { color: #f47e84; text-shadow: 0 0 10px #f47e84; }
+        #results-container p { font-size: 18px; margin-bottom: 25px; color: #c0d3f5; }
+        #strawberry-display { display: flex; gap: 20px; margin-bottom: 25px; min-height: 48px; }
+        .strawberry-icon {
+            width: 32px; height: 32px; position: relative;
+            filter: grayscale(100%) brightness(50%); transform: scale(1.5);
+            transition: filter 0.4s ease, transform 0.4s ease; display: none;
+        }
+        .strawberry-icon.visible { display: block; }
+        .strawberry-icon.collected { filter: none; transform: scale(1.6) rotate(10deg); }
+        .strawberry-icon .body {
+            width: 100%; height: 80%; background-color: #ff4757; position: absolute; bottom: 0;
+            clip-path: polygon(50% 100%, 0 45%, 0 20%, 50% 0, 100% 20%, 100% 45%);
+        }
+        .strawberry-icon .leaf {
+            width: 70%; height: 40%; background-color: #2ed573; position: absolute; top: 5%; left: 15%;
+            clip-path: polygon(50% 0%, 100% 100%, 0 100%);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container-wrapper">
+        <div id="game-container"></div>
+        <div id="ui-wrapper">
+            <div id="level-selector"></div>
+            <div id="ui-container">
+                <div id="level-info"> <h2 id="level-title"></h2> <p id="level-description"></p> </div>
+                <div id="code-block">
+                    <div class="code-line" id="line-start">
+                        <span class="keyword">int</span>
+                        <span class="variable">i</span>
+                        <span class="operator">=</span>
+                        <input type="number" id="start-input">
+                        <span>;</span>
+                    </div>
+                    <div class="code-line" id="line-end">
+                        <span class="keyword">while</span>
+                        <span>(</span>
+                        <span class="variable">i</span>
+                        <span id="operator-span" class="operator"></span>
+                        <select id="operator-select" class="operator">
+                            <option value="<"><</option>
+                            <option value="<="><=</option>
+                            <option value=">">></option>
+                            <option value=">=">>=</option>
+                            <option value="==">==</option>
+                            <option value="!=">!=</option>
+                        </select>
+                        <input type="number" id="end-input">
+                        <span>) {</span>
+                    </div>
+                    <div class="code-line" id="line-jump">
+                        <span style="padding-left: 40px;"></span>
+                        <span class="variable">跳到位置</span>
+                        <span>(</span><span class="variable">i</span><span>);</span>
+                    </div>
+                    <div class="code-line" id="line-step">
+                        <span style="padding-left: 40px;"></span>
+                        <span class="variable">i</span>
+                        <span class="operator">+=</span>
+                        <input type="number" id="step-input">
+                        <span>;</span>
+                    </div>
+                    <div class="code-line"><span>}</span></div>
+                </div>
+                <button id="execute-button">执 行</button>
+            </div>
+        </div>
+        <div id="results-container">
+            <h1 id="results-title"></h1> <p id="results-message"></p>
+            <div id="strawberry-display"></div>
+            <button id="retry-button">重试本关</button>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script>
+        const GRID_SIZE = 40, GRID_START_X = 20, GROUND_Y = 580, GRID_CELL_COUNT = 31, MAX_BERRIES = 5;
+
+        // --- LEVEL DESIGN (v12.0) - Levels 2 and 3 swapped ---
+        const LEVELS = [
+            { name: "第零关：自由探索", description: "这里没有对错。自由修改所有参数，看看循环是如何工作的吧！", editableField: "all", defaultValue: {start: 0, end: 5, step: 1, operator: '<'}, startGridIndex: 0, endGridIndex: 5, operator: '<', spikes: [], strawberries: [] },
+            { name: "第一关：安全起点", description: "初始位置(0)有陷阱！请修改【起点】，从安全区出发并收集所有草莓。", editableField: "start", defaultValue: 0, startGridIndex: 0, endGridIndex: 10, operator: '<', fixedStep: 1, spikes: [0, 1, 2, 3, 4], strawberries: [6, 7, 9] },
+            { name: "第二关：危险的边界", description: "终点线上现在是陷阱！请修改【关系符】，避免在终点坠毁。", editableField: "operator", defaultValue: '<=', startGridIndex: 5, endGridIndex: 9, operator: '<=', fixedStep: 1, spikes: [9], strawberries: [6, 8] },
+            { name: "第三关：悬崖勒马", description: "终点(10)之后就是悬崖！请修改【终点】，让循环提前停下。", editableField: "end", defaultValue: 12, startGridIndex: 5, endGridIndex: 12, operator: '<', fixedStep: 1, spikes: [11, 12, 13], strawberries: [6, 8, 10] },
+            { name: "第四关：精确的步伐", description: "地面上布满了陷阱。请修改【步长】，跳过所有奇数格子！", editableField: "step", defaultValue: 1, startGridIndex: 0, endGridIndex: 15, operator: '<', spikes: [1, 3, 5, 7, 9, 11, 13], strawberries: [2, 6, 10] },
+            { name: "第五关：逆向思维", description: "要想到达目的地，有时必须后退。请修改【步长】，让循环反向执行！", editableField: "step", defaultValue: 1, startGridIndex: 17, endGridIndex: 5, operator: '>', spikes: [9, 13], strawberries: [14, 11, 8] }
+        ];
+
+        let currentLevelIndex = 0, LEVEL = {}, isExecuting = false;
+        let player, spikesGroup, strawberriesGroup;
+        let dustParticles, collectParticles, deathParticles;
+        const config = { type: Phaser.AUTO, width: 1280, height: 720, parent: 'game-container', scene: { create } };
+        const game = new Phaser.Game(config);
+
+        function getPixelX(gridIndex) { return GRID_START_X + gridIndex * GRID_SIZE + GRID_SIZE / 2; }
+        
+        function generateMountainPoints(pointCount, yBase, yVariance, xStep, xVariance) {
+            const points = [{ x: -100, y: yBase + Phaser.Math.Between(-yVariance, yVariance) }];
+            for (let i = 1; i <= pointCount; i++) {
+                points.push({ x: points[i-1].x + xStep + Phaser.Math.Between(-xVariance, xVariance), y: yBase + Phaser.Math.Between(-yVariance, yVariance) });
+            }
+            points.push({ x: config.width + 100, y: points[points.length-1].y });
+            return points;
+        }
+        function drawMountainRange(graphics, points, color) {
+            graphics.fillStyle(color, 1).beginPath().moveTo(points[0].x, config.height);
+            for(const point of points) { graphics.lineTo(point.x, point.y); }
+            graphics.lineTo(config.width + 100, config.height).closePath().fillPath();
+        }
+
+        function loadLevel(scene, levelIndex) {
+            currentLevelIndex = levelIndex;
+            LEVEL = LEVELS[currentLevelIndex];
+            const inputs = { start: document.getElementById('start-input'), end: document.getElementById('end-input'), step: document.getElementById('step-input') };
+            const lines = { start: document.getElementById('line-start'), end: document.getElementById('line-end'), step: document.getElementById('line-step') };
+            const operatorSpan = document.getElementById('operator-span');
+            const operatorSelect = document.getElementById('operator-select');
+
+            for (const key in inputs) {
+                inputs[key].disabled = true;
+                lines[key].classList.remove('editable');
+            }
+            operatorSelect.disabled = true;
+
+            if (LEVEL.editableField === "all") {
+                operatorSpan.style.display = 'none';
+                operatorSelect.style.display = 'inline-block';
+                operatorSelect.disabled = false;
+                
+                for (const key in LEVEL.defaultValue) {
+                    if (key === 'operator') {
+                        operatorSelect.value = LEVEL.defaultValue[key];
+                    } else {
+                        inputs[key].value = LEVEL.defaultValue[key];
+                        inputs[key].disabled = false;
+                    }
+                    if (lines[key]) {
+                        lines[key].classList.add('editable');
+                    }
+                }
+                lines.end.classList.add('editable');
+            } else {
+                inputs.start.value = LEVEL.startGridIndex;
+                inputs.end.value = LEVEL.endGridIndex;
+                if(LEVEL.fixedStep) inputs.step.value = LEVEL.fixedStep;
+                operatorSpan.textContent = LEVEL.operator;
+
+                const field = LEVEL.editableField;
+                if (field === 'operator') {
+                    operatorSpan.style.display = 'none';
+                    operatorSelect.style.display = 'inline-block';
+                    operatorSelect.disabled = false;
+                    operatorSelect.value = LEVEL.defaultValue;
+                    lines.end.classList.add('editable');
+                    operatorSelect.focus();
+                } else {
+                    operatorSpan.style.display = 'inline-block';
+                    operatorSelect.style.display = 'none';
+                    inputs[field].disabled = false;
+                    inputs[field].value = LEVEL.defaultValue;
+                    lines[field].classList.add('editable');
+                    inputs[field].focus();
+                }
+            }
+            
+            document.getElementById('level-title').textContent = LEVEL.name;
+            document.getElementById('level-description').textContent = LEVEL.description;
+            document.querySelectorAll('.level-button').forEach((btn, i) => btn.classList.toggle('active', i === currentLevelIndex));
+            
+            if (spikesGroup) spikesGroup.clear(true, true);
+            if (strawberriesGroup) strawberriesGroup.clear(true, true);
+            spikesGroup = scene.add.group();
+            LEVEL.spikes.forEach(index => spikesGroup.add(scene.add.triangle(getPixelX(index)+15, GROUND_Y+32, -15, 0, 15, 0, 0, -25, 0xd9534f).setStrokeStyle(2, 0xc0392b)));
+            strawberriesGroup = scene.add.group();
+            const PX = -13, PY = -13;
+            LEVEL.strawberries.forEach((index, displayId) => {
+                const berryContainer = scene.add.container(getPixelX(index)+13, GROUND_Y);
+                berryContainer.add([scene.add.polygon(0, 0, [ 0, 14, -12, 5, -10, -10, 0, -14, 10, -10, 12, 5 ], 0xff4757).setStrokeStyle(2, 0xd63031), scene.add.graphics().fillStyle(0x2ed573, 1).fillTriangle(0+PX, -10+PY, -10+PX, -12+PY, 6+PX, -20+PY).fillTriangle(0+PX, -10+PY, 10+PX, -12+PY, -6+PX, -20+PY)]);
+                strawberriesGroup.add(berryContainer);
+                berryContainer.setData('gridIndex', index).setData('displayId', displayId);
+            });
+            const strawberryDisplay = document.getElementById('strawberry-display');
+            for(let i=0; i<MAX_BERRIES; i++) {
+                const berryIcon = strawberryDisplay.children[i];
+                berryIcon.classList.toggle('visible', i < LEVEL.strawberries.length);
+                berryIcon.classList.remove('collected');
+            }
+            resetScene(scene);
+        }
+
+        function resetScene(scene) {
+            document.getElementById('results-container').style.display = 'none';
+            document.getElementById('ui-wrapper').style.opacity = '1';
+            document.getElementById('ui-wrapper').style.transform = 'translateY(0px)';
+            if (scene.tweens) scene.tweens.killAll();
+            
+            if (player) {
+                // Start player off-screen for the entry animation
+                player.setPosition(-50, GROUND_Y).setActive(true).setVisible(true).setScale(1).setData('currentGridIndex', -99); 
+                if (player.getData('hair')) player.getData('hair').y = -5;
+                // Idle animation is now triggered after the entry animation
+            }
+
+            if (strawberriesGroup) {
+                strawberriesGroup.getChildren().forEach(berry => {
+                    berry.setVisible(true);
+                    scene.tweens.add({ targets: berry, y: GROUND_Y - 10, duration: 1000, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+                });
+            }
+            if(LEVEL.strawberries) {
+                 for(let i=0; i<LEVEL.strawberries.length; i++) {
+                     const berryIcon = document.getElementById(`berry-${i}`);
+                     if (berryIcon) berryIcon.classList.remove('collected');
+                 }
+            }
+            isExecuting = false;
+        }
+
+        function create() {
+            const scene = this;
+            
+            scene.add.graphics().fillGradientStyle(0x0c142c, 0x0c142c, 0x1e2a3f, 0x1e2a3f, 1).fillRect(0, 0, config.width, config.height);
+            const pG = scene.add.graphics();
+            pG.fillStyle(0xffffff, 1).fillCircle(4, 4, 4).generateTexture('particle', 8, 8);
+            pG.fillStyle(0xffffff, 1).fillCircle(4, 4, 4).generateTexture('white', 8, 8);
+            pG.fillStyle(0xff4757, 1).fillRect(0, 0, 8, 8).generateTexture('player_particle', 8, 8);
+            pG.destroy();
+
+            const starConfig = (speed, scale, alpha) => ({ speedY: { min: speed, max: speed * 2 }, scale: { min: scale, max: scale * 2 }, alpha: { min: alpha, max: alpha * 2 }, lifespan: { min: 20000, max: 50000 }, blendMode: 'ADD' });
+            const topBounds = new Phaser.Geom.Rectangle(0, -10, config.width, 5);
+            scene.add.particles(0, 0, 'white', { ...starConfig(4, 0.1, 0.2), emitZone: { source: new Phaser.Geom.Rectangle(0, 0, config.width, config.height) }}).explode(150);
+            scene.add.particles(0, 0, 'white', { ...starConfig(10, 0.3, 0.5), emitZone: { source: new Phaser.Geom.Rectangle(0, 0, config.width, config.height) }}).explode(70);
+            scene.add.particles(0, 0, 'white', { ...starConfig(4, 0.1, 0.2), emitZone: { source: topBounds }, frequency: 100, quantity: 1 });
+            scene.add.particles(0, 0, 'white', { ...starConfig(10, 0.3, 0.5), emitZone: { source: topBounds }, frequency: 200, quantity: 1 });
+
+            const mountainGraphics = scene.add.graphics();
+            drawMountainRange(mountainGraphics, generateMountainPoints(5, 350, 80, 250, 50), 0x3e577a);
+            drawMountainRange(mountainGraphics, generateMountainPoints(4, 450, 60, 350, 80), 0x2c3e50);
+            
+            const groundLineY = GROUND_Y + GRID_SIZE / 2;
+            const groundGraphics = scene.add.graphics().fillStyle(0x34495e, 1).fillRect(0, groundLineY, config.width, config.height - groundLineY);
+            for (let i = 0; i <= GRID_CELL_COUNT; i++) {
+                const x = GRID_START_X + i * GRID_SIZE;
+                groundGraphics.fillStyle(0x7f8c8d, 0.5).fillRect(x + GRID_SIZE / 2 - 1, groundLineY - 5, 2, 5);
+                
+                const brightness = 0.5 + (i / GRID_CELL_COUNT) * 0.5;
+                const fontSize = 14 + (i / GRID_CELL_COUNT) * 6;
+                const color = Phaser.Display.Color.ValueToColor(0x7f8c8d).lighten(brightness * 50).rgba;
+                
+                scene.add.text(x + GRID_SIZE / 2, groundLineY + 18, i.toString(), { 
+                    fontSize: `${fontSize}px`, 
+                    fill: color,
+                    fontStyle: 'bold' 
+                }).setOrigin(0.5);
+            }
+            
+            dustParticles = scene.add.particles(0, 0, 'particle', { speed: { min: 20, max: 60 }, angle: { min: 220, max: 320 }, scale: { start: 1, end: 0 }, lifespan: 400, gravityY: 200, blendMode: 'ADD', emitting: false });
+            collectParticles = scene.add.particles(0, 0, 'particle', { speed: 200, lifespan: 500, scale: { start: 2, end: 0 }, blendMode: 'ADD', emitting: false, tint: 0xffd700 });
+            deathParticles = scene.add.particles(0, 0, 'player_particle', { angle: { min: 0, max: 360 }, speed: { min: 100, max: 300 }, scale: { start: 1, end: 0 }, lifespan: 1000, gravityY: 300, emitting: false });
+            
+            player = scene.add.container(0, 0, [scene.add.rectangle(0, 0, 24, 32, 0x452d3d), scene.add.rectangle(0, -5, 28, 24, 0xff4757)]);
+            player.setData('hair', player.list[1]);
+            player.setData('currentGridIndex', -99); // Initial off-screen state
+            
+            LEVELS.forEach((level, i) => {
+                const btn = document.createElement('button');
+                btn.textContent = level.name.split('：')[0];
+                btn.className = 'level-button';
+                btn.onclick = () => loadLevel(scene, i);
+                document.getElementById('level-selector').appendChild(btn);
+            });
+            const berryDisplay = document.getElementById('strawberry-display');
+            for (let i = 0; i < MAX_BERRIES; i++) {
+                const icon = document.createElement('div');
+                icon.className = 'strawberry-icon';
+                icon.id = `berry-${i}`;
+                icon.innerHTML = `<div class="body"></div><div class="leaf"></div>`;
+                berryDisplay.appendChild(icon);
+            }
+            loadLevel(scene, 0);
+            document.getElementById('execute-button').onclick = () => executeNewLogic(scene);
+            document.getElementById('retry-button').onclick = () => loadLevel(scene, currentLevelIndex);
+        }
+        
+        // --- REBUILT LOGIC (v12.2) ---
+        function executeNewLogic(scene) {
+            if (isExecuting) return;
+            isExecuting = true;
+            scene.tweens.killTweensOf(player);
+            document.getElementById('ui-wrapper').style.opacity = '0';
+            document.getElementById('ui-wrapper').style.transform = 'translateY(-100px)';
+
+            const startVal = parseInt(document.getElementById('start-input').value);
+            const endVal = parseInt(document.getElementById('end-input').value);
+            const stepVal = parseInt(document.getElementById('step-input').value);
+            const operatorSelect = document.getElementById('operator-select');
+            const operator = !operatorSelect.disabled ? operatorSelect.value : LEVEL.operator;
+
+            if (isNaN(startVal) || isNaN(endVal) || isNaN(stepVal) || stepVal === 0) {
+                showResult(false, '输入无效！步长必须是非零数字。', 0);
+                return;
+            }
+
+            const loopCondition = (val, op, target) => {
+                switch(op) {
+                    case '<':  return val < target;
+                    case '<=': return val <= target;
+                    case '>':  return val > target;
+                    case '>=': return val >= target;
+                    case '==': return val == target;
+                    case '!=': return val != target;
+                    default:   return false;
+                }
+            };
+
+            let liveCollectedCount = 0;
+            let iterationGuard = 0;
+            const MAX_ITERATIONS = 100;
+
+            // This recursive function now handles all iterations AFTER the entry animation.
+            function runLoopAnimation(i) {
+                if (iterationGuard++ >= MAX_ITERATIONS) {
+                    showResult(false, '循环次数过多！请检查您的循环条件以避免无限循环。', liveCollectedCount);
+                    return;
+                }
+
+                // Step 1: Check the 'while' condition for the current value 'i'.
+                if (!loopCondition(i, operator, endVal)) {
+                    scene.tweens.add({ targets: player, scaleY: 1.05, scaleX: 0.95, y: GROUND_Y + 2, duration: 1200, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+                    showResult(true, `循环成功！安全停止在格子 ${player.getData('currentGridIndex')}。`, liveCollectedCount);
+                    return;
+                }
+
+                // Step 2: Animate the jump to the position for 'i'.
+                const targetGridX = i;
+                const targetPixelX = getPixelX(targetGridX);
+                const jumpDistance = Math.abs(targetGridX - player.getData('currentGridIndex'));
+                const jumpHeight = 80 + jumpDistance * 4;
+
+                scene.tweens.chain({
+                    tweens: [
+                        { // Squish before jump
+                            targets: player.list,
+                            scaleX: 1.2, scaleY: 0.8, duration: 100, ease: 'Sine.Out', yoyo: true,
+                            onStart: () => dustParticles.setPosition(player.x, player.y + 20).emitParticle(10)
+                        },
+                        { // The actual jump animation
+                            targets: player, x: targetPixelX, duration: 600, ease: 'Power2',
+                            onUpdate: (tween) => {
+                                player.y = GROUND_Y - (jumpHeight * Math.sin(tween.progress * Math.PI));
+                                const p = tween.progress < 0.5 ? tween.progress * 2 : (1 - tween.progress) * 2;
+                                if(player.getData('hair')) {
+                                   player.getData('hair').scaleY = 1 + p * 0.4;
+                                   player.getData('hair').y = -5 - p * 5;
+                                }
+                            },
+                            onComplete: () => {
+                                player.getData('hair').y = -5;
+                                player.getData('hair').scaleY = 1;
+                                dustParticles.setPosition(player.x, player.y + 20).emitParticle(16);
+                                scene.cameras.main.shake(50, 0.003);
+                                player.setData('currentGridIndex', targetGridX);
+
+                                // Step 3: Check for hazards AFTER landing
+                                if (LEVEL.spikes.includes(targetGridX)) {
+                                    player.setActive(false).setVisible(false);
+                                    scene.cameras.main.shake(250, 0.01);
+                                    deathParticles.setPosition(targetPixelX, GROUND_Y).emitParticle(50);
+                                    showResult(false, `循环中断！在格子 ${targetGridX} 处坠毁！`, liveCollectedCount);
+                                    return; 
+                                }
+
+                                // Step 4: Check for collectibles
+                                strawberriesGroup.getChildren().forEach(b => {
+                                    if (b.getData('gridIndex') === targetGridX && b.visible) {
+                                        liveCollectedCount++;
+                                        const displayId = b.getData('displayId');
+                                        if (document.getElementById(`berry-${displayId}`)) {
+                                          document.getElementById(`berry-${displayId}`).classList.add('collected');
+                                        }
+                                        collectParticles.setPosition(b.x, b.y).emitParticle(25);
+                                        b.setVisible(false);
+                                    }
+                                });
+                                
+                                // Step 5: Calculate the next 'i' and recurse for the next iteration.
+                                const next_i = i + stepVal;
+                                setTimeout(() => runLoopAnimation(next_i), 100);
+                            }
+                        }
+                    ]
+                });
+            }
+
+            // --- ENTRY LOGIC ---
+            // First, check if the loop should even run once.
+            if (!loopCondition(startVal, operator, endVal)) {
+                const startPixelX = getPixelX(startVal);
+                player.setPosition(startPixelX, GROUND_Y);
+                player.setData('currentGridIndex', startVal);
+                dustParticles.setPosition(player.x, player.y + 20).emitParticle(16);
+                showResult(true, `循环条件不满足，循环未执行。安全停在格子 ${startVal}。`, 0);
+                return;
+            }
+            
+            // If the condition is met, perform the entry animation, which acts as the FIRST jump.
+            const startPixelX = getPixelX(startVal);
+            scene.tweens.add({
+                targets: player, x: startPixelX, duration: 600, ease: 'Power2',
+                onUpdate: (tween) => player.y = GROUND_Y - (120 * Math.sin(tween.progress * Math.PI)),
+                onComplete: () => {
+                    // Landed at startVal. Apply effects and checks.
+                    dustParticles.setPosition(player.x, player.y + 20).emitParticle(16);
+                    scene.cameras.main.shake(50, 0.003);
+                    player.setData('currentGridIndex', startVal);
+
+                    if (LEVEL.spikes.includes(startVal)) {
+                        player.setActive(false).setVisible(false);
+                        scene.cameras.main.shake(250, 0.01);
+                        deathParticles.setPosition(startPixelX, GROUND_Y).emitParticle(50);
+                        showResult(false, `循环甚至无法开始！在起点格子 ${startVal} 就坠毁了！`, 0);
+                        return;
+                    }
+
+                    strawberriesGroup.getChildren().forEach(b => {
+                        if (b.getData('gridIndex') === startVal && b.visible) {
+                            liveCollectedCount++;
+                            const displayId = b.getData('displayId');
+                            document.getElementById(`berry-${displayId}`)?.classList.add('collected');
+                            collectParticles.setPosition(b.x, b.y).emitParticle(25);
+                            b.setVisible(false);
+                        }
+                    });
+
+                    // The first iteration's "body" (jump, check) is now complete.
+                    // Calculate the value for the *next* iteration.
+                    const next_i = startVal + stepVal;
+                    // Start the recursive animation, beginning with the next value.
+                    setTimeout(() => runLoopAnimation(next_i), 100);
+                }
+            });
+        }
+
+        function showResult(isSuccess, message, collectedCount) {
+            const totalBerries = LEVEL.strawberries.length;
+            let title = "挑战失败!";
+
+            if(isSuccess) {
+                if (totalBerries === 0) {
+                     title = "探索成功 ★★★";
+                } else if (collectedCount >= totalBerries) {
+                    title = "完美通关 ★★★";
+                } else if (collectedCount > 0) {
+                    title = "挑战成功 ★★☆";
+                } else {
+                    title = "挑战成功 ★☆☆";
+                }
+            }
+
+            document.getElementById('results-title').textContent = title;
+            document.getElementById('results-title').className = isSuccess ? "success" : "fail";
+            document.getElementById('results-message').textContent = message;
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.style.display = 'flex';
+            setTimeout(() => { resultsContainer.style.opacity = '1'; resultsContainer.style.transform = 'translate(-50%, -50%) scale(1)'; }, 50);
+            isExecuting = false;
+        }
+    </script>
+</body>
+</html>

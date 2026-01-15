@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>钻石探测器 💎 最终版</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --game-bg: #2d3436;
+            --panel-bg: #f5e4c3;
+            --border-color: #5a3a22;
+            --text-color: #3d2314;
+            --grass-color: #6a994e;
+            --dirt-color: #a37b4b;
+            --sky-color: #87CEEB;
+            --btn-bg: #84a98c;
+            --btn-hover-bg: #6b8f71;
+            --btn-action-bg: #f94144;
+            --btn-action-hover-bg: #d93a3c;
+        }
+
+        body {
+            font-family: 'Press+Start+2P', cursive;
+            background-color: var(--game-bg);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            image-rendering: pixelated;
+        }
+
+        .game-container {
+            width: 960px;
+            padding: 24px;
+            background-color: var(--panel-bg);
+            border: 4px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 10px 0 var(--border-color), 0 15px 20px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 32px;
+            color: var(--text-color);
+            margin-bottom: 25px;
+            text-shadow: 3px 3px #fff;
+        }
+
+        .level-selector button {
+            font-family: inherit;
+            font-size: 16px;
+            padding: 14px 22px;
+            margin: 0 10px;
+            border: 3px solid var(--border-color);
+            border-bottom-width: 6px;
+            border-radius: 8px;
+            background-color: var(--btn-bg);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.1s, border-width 0.1s;
+        }
+
+        .level-selector button:hover {
+            background-color: var(--btn-hover-bg);
+        }
+        
+        .level-selector button:active {
+            transform: translateY(3px);
+            border-bottom-width: 3px;
+        }
+
+        .game-area {
+            position: relative;
+            height: 220px;
+            margin-top: 30px;
+            background: linear-gradient(to bottom, var(--sky-color) 65%, var(--grass-color) 65%);
+            border: 4px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0 80px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .path {
+            position: absolute;
+            bottom: 0;
+            left: 80px;
+            width: calc(100% - 160px);
+            height: 35%;
+            background: repeating-linear-gradient(
+                var(--dirt-color), var(--dirt-color) 20px,
+                #8c6a3e 20px, #8c6a3e 40px
+            );
+        }
+
+        #hill-blocker {
+            position: absolute;
+            bottom: 0;
+            left: 80px;
+            width: calc(100% - 160px);
+            height: 90%;
+            background: linear-gradient(to top, 
+                var(--dirt-color) 30%, 
+                #8c6a3e 30%, 
+                #8c6a3e 40%, 
+                var(--grass-color) 40%
+            );
+            z-index: 8;
+            border: 4px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 120px 120px 0 0;
+        }
+        
+        #player {
+            position: absolute;
+            bottom: 35%; 
+            left: 10px;
+            width: 50px;
+            height: 60px;
+            z-index: 10;
+        }
+        
+        #player-body {
+            position: absolute;
+            bottom: 0;
+            width: 34px; height: 34px;
+            background-color: #d90429;
+            border: 3px solid #2d3436;
+            left: 50%; transform: translateX(-50%);
+        }
+        
+        #player-body::before {
+            content: '';
+            position: absolute;
+            width: 26px; height: 26px;
+            background-color: #ffc971;
+            border: 3px solid #2d3436;
+            top: -32px; left: 1px;
+        }
+
+        #detector-light {
+            position: absolute;
+            top: -20px; left: 50%;
+            transform: translateX(-50%);
+            width: 20px; height: 20px;
+            border: 3px solid #2d3436;
+            border-radius: 50%;
+            transition: background-color 0.1s, box-shadow 0.1s;
+        }
+
+        .red-light { background-color: #f94144; box-shadow: 0 0 12px #f94144, 0 0 18px #f94144; }
+        .green-light { background-color: #90be6d; box-shadow: 0 0 12px #90be6d, 0 0 18px #90be6d; }
+
+        #diamond {
+            position: absolute;
+            bottom: 15px;
+            font-size: 36px;
+            z-index: 5;
+            user-select: none;
+            display: none;
+            animation: sparkle 1.5s infinite;
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.25); opacity: 1; }
+        }
+
+        /* --- 关键改动 1: 字体更显眼 --- */
+        .message-area {
+            margin-top: 25px;
+            font-size: 18px; /* 增大字体 */
+            min-height: 50px;
+            line-height: 1.6;
+            text-shadow: 2px 2px #c9b89d; /* 增加文字阴影 */
+        }
+        
+        .answer-btns span {
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .controls button {
+            font-family: inherit;
+            font-size: 16px;
+            padding: 14px 22px;
+            margin: 0 10px;
+            border: 3px solid var(--border-color);
+            border-bottom-width: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+            transition: transform 0.1s, border-width 0.1s;
+        }
+        .controls button:active { transform: translateY(3px); border-bottom-width: 3px; }
+
+        #start-walk-btn { background-color: var(--btn-action-bg); }
+        #start-walk-btn:hover { background-color: var(--btn-action-hover-bg); }
+        .answer-btns button { 
+            background-color: var(--btn-bg);
+            width: 120px; /* --- 关键改动 2: 按钮等宽 --- */
+        }
+        .answer-btns button:hover { background-color: var(--btn-hover-bg); }
+        .hidden { display: none; }
+
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>钻石探测器</h1>
+    <div class="level-selector">
+        <button id="level-1-btn">第 1 关</button>
+        <button id="level-2-btn">第 2 关</button>
+        <button id="level-3-btn">第 3 关</button>
+    </div>
+
+    <div id="game-area" class="game-area">
+        <div id="hill-blocker" class="hidden"></div>
+        <div id="path" class="path"></div>
+        <div id="player">
+            <div id="player-body"></div>
+            <div id="detector-light"></div>
+        </div>
+        <div id="diamond">💎</div>
+    </div>
+
+    <div id="message-area" class="message-area">选择一个关卡开始游戏!</div>
+
+    <div class="controls">
+        <button id="start-walk-btn" class="hidden">开始探测</button>
+        <div id="answer-btns" class="answer-btns hidden">
+            <span>路上有钻石吗?</span>
+            <button id="answer-yes-btn">有</button>
+            <button id="answer-no-btn">没有</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const level1Btn = document.getElementById('level-1-btn');
+    const level2Btn = document.getElementById('level-2-btn');
+    const level3Btn = document.getElementById('level-3-btn');
+    const gameArea = document.getElementById('game-area');
+    const player = document.getElementById('player');
+    const detectorLight = document.getElementById('detector-light');
+    const diamond = document.getElementById('diamond');
+    const messageArea = document.getElementById('message-area');
+    const startWalkBtn = document.getElementById('start-walk-btn');
+    const answerBtns = document.getElementById('answer-btns');
+    const answerYesBtn = document.getElementById('answer-yes-btn');
+    const answerNoBtn = document.getElementById('answer-no-btn');
+    const hillBlocker = document.getElementById('hill-blocker');
+
+    let currentLevel = 0, diamondPosition = -1;
+    let detectorIsGreen = false, gameInProgress = false;
+    let animationFrameId;
+
+    const pathTilesCount = 10;
+    const padding = 80;
+
+    function setupLevel(level) {
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        
+        currentLevel = level;
+        gameInProgress = false;
+        detectorIsGreen = false;
+
+        player.style.left = '10px';
+        detectorLight.className = 'red-light';
+        diamond.style.display = 'none';
+        hillBlocker.classList.add('hidden');
+
+        const startTile = 5, endTile = 9;
+        const range = endTile - startTile + 1;
+        diamondPosition = Math.floor(Math.random() * range) + startTile;
+        
+        const pathWidth = gameArea.clientWidth - (padding * 2);
+        const diamondLeftOffset = (diamondPosition + 0.5) * (pathWidth / pathTilesCount);
+        diamond.style.left = `${padding + diamondLeftOffset - (diamond.clientWidth / 2)}px`;
+
+        switch (level) {
+            case 1:
+                messageArea.textContent = '第1关：你可以看到钻石和探测器。';
+                diamond.style.display = 'block';
+                player.style.zIndex = 10;
+                break;
+            case 2:
+                messageArea.textContent = '第2关：你看不见钻石，但探测器全程可见。';
+                player.style.zIndex = 10;
+                break;
+            case 3:
+                messageArea.textContent = '第3关：穿过这个小山丘找到钻石吧！';
+                hillBlocker.classList.remove('hidden');
+                player.style.zIndex = 10; 
+                break;
+        }
+
+        startWalkBtn.classList.remove('hidden');
+        startWalkBtn.disabled = false;
+        answerBtns.classList.add('hidden');
+    }
+
+    function startWalk() {
+        if (gameInProgress) return;
+        gameInProgress = true;
+        startWalkBtn.disabled = true;
+        messageArea.textContent = '探测进行中...';
+
+        const startPos = 10;
+        const endPos = gameArea.clientWidth - player.clientWidth - 10;
+        const duration = 5000; // --- 关键改动 3: 加快速度 ---
+        let startTime = null;
+
+        let diamondStartPx = -1, diamondEndPx = -1;
+        const pathWidth = gameArea.clientWidth - (padding * 2);
+        const tileWidth = pathWidth / pathTilesCount;
+        diamondStartPx = padding + (diamondPosition * tileWidth);
+        diamondEndPx = diamondStartPx + tileWidth;
+        
+        function animate(currentTime) {
+            if (!startTime) startTime = currentTime;
+            const elapsedTime = currentTime - startTime;
+            const progress = Math.min(elapsedTime / duration, 1);
+            const currentPos = startPos + (endPos - startPos) * progress;
+            player.style.left = `${currentPos}px`;
+            
+            if (!detectorIsGreen) {
+                const playerCenterPx = currentPos + (player.clientWidth / 2);
+                if (playerCenterPx >= diamondStartPx && playerCenterPx <= diamondEndPx) {
+                    detectorIsGreen = true;
+                    detectorLight.className = 'green-light';
+                }
+            }
+            
+            if (currentLevel === 3) {
+                const playerCenterPx = currentPos + (player.clientWidth / 2);
+                const hillStartPx = hillBlocker.offsetLeft;
+                const hillEndPx = hillBlocker.offsetLeft + hillBlocker.offsetWidth;
+
+                if (playerCenterPx > hillStartPx && playerCenterPx < hillEndPx) {
+                    player.style.zIndex = 7;
+                } else {
+                    player.style.zIndex = 10;
+                }
+            }
+
+            if (progress < 1) {
+                animationFrameId = requestAnimationFrame(animate);
+            } else {
+                player.style.zIndex = 10;
+                finishWalk();
+            }
+        }
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function finishWalk() {
+        gameInProgress = false;
+        messageArea.textContent = '探测完成！';
+        startWalkBtn.classList.add('hidden');
+        answerBtns.classList.remove('hidden');
+    }
+
+    function checkAnswer(playerAnswer) {
+        answerBtns.classList.add('hidden');
+        let resultMessage = '';
+
+        if (playerAnswer) { 
+            resultMessage = '回答正确！';
+            if (currentLevel === 3) resultMessage = '🎉 太棒了！你完成了所有挑战！🎉';
+        } else {
+            resultMessage = '回答错误。';
+        }
+        
+        diamond.style.display = 'block';
+        messageArea.innerHTML = `${resultMessage}<br>钻石在这里。`;
+    }
+
+    level1Btn.addEventListener('click', () => setupLevel(1));
+    level2Btn.addEventListener('click', () => setupLevel(2));
+    level3Btn.addEventListener('click', () => setupLevel(3));
+    startWalkBtn.addEventListener('click', startWalk);
+    answerYesBtn.addEventListener('click', () => checkAnswer(true));
+    answerNoBtn.addEventListener('click', () => checkAnswer(false));
+</script>
+
+</body>
+</html>
